@@ -4,7 +4,7 @@
 > Template per entry: Planned / Did / Verified / Next / Blockers / Commit.
 > Paste test output + manual proof under Verified. Link commits by hash.
 
-## S0 — 2026-10-05 — Repo & docs baseline (in_progress)
+## S0 — 2026-10-05 — Repo & docs baseline (done)
 
 ### Planned
 - Review `architecture.md`, `implementation-guide.md`, `roadmap.md`.
@@ -20,17 +20,17 @@
 - [x] `worklog.md` created.
 
 ### Verified
-- `git status` → pending (pre-init, `Test-Path .git` = False).
-- `gh --version` → 2.98.0 available.
-- Manual: `roadmap.md` §26 renders, `agents.md` + `worklog.md` present.
+- `Test-Path .git` → True, `git log --oneline -3` → `3b2e885 S0: chore(repo): init YtPop baseline docs`.
+- `gh repo view --json name,visibility` → `YtPop`, public, `https://github.com/jamesdileva/YtPop`.
+- `git status` → clean, `main` tracks `origin/main`.
+- Manual: `roadmap.md` §26 + §23 table, `agents.md`, `worklog.md`, `README.md`, `.gitignore`, `.env.example` present.
 
 ### Next
-- `git init`, add `.gitignore`/`README.md`/`.env.example`, initial commit, `gh repo create YtPop --public --source=. --push`.
-- Start S1 (Foundation) per roadmap §26.
+- Start S1 (Foundation) per roadmap §26: `apps/api` health + Electron shell + tests.
 
 ### Blockers
-- None. Needs `gh auth status` green before `gh repo create`.
+- None.
 
 ### Commit
-- Pending: `S0: chore(repo): init YtPop baseline docs` (+ hash after commit).
-- `git log --oneline -3` to be pasted here.
+- `3b2e885 S0: chore(repo): init YtPop baseline docs` (8 files, 4285 insertions).
+- Follow-up: `S0: docs(worklog): mark S0 done with repo evidence`.
