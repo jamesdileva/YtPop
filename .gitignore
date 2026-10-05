@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Node / Electron
+node_modules/
+dist/
+out/
+*.log
+
+# App data (keep dirs, ignore artifacts)
+data/database/*.db
+data/database/*.sqlite*
+data/raw/*
+data/media/*
+data/transcripts/*
+data/clips/*
+data/episodes/*
+data/renders/*
+data/thumbnails/*
+data/logs/*
+!data/**/.gitkeep
+
+# Build / OS
+.DS_Store
+Thumbs.db
