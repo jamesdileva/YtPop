@@ -186,4 +186,4 @@
 - None. Notes: `faster-whisper 1.2.1 + av 19` breaks (`metadata_errors` kwarg removed) → pinned `av<19` (18.1.0 verified). `python -m alembic` required (exe not on PATH).
 
 ### Commit
-- Pending: `S5: feat(transcription): whisper + transcript pipeline` (+ hash).
+- `1760f62 S5: feat(transcription): whisper + transcript pipeline` (17 files).
