@@ -1,0 +1,19 @@
+discovery:
+  regions: [US]
+  categories: [gaming, entertainment, technology]
+  scan_interval_minutes: 30
+clipping:
+  min_duration: 4
+  max_duration: 90
+  target_candidates_per_video: 10
+episodes:
+  target_duration_minutes: 20
+  max_sources: 30
+render:
+  resolution: 1920x1080
+  fps: 30
+workers:
+  transcription: 1
+  vision: 1
+  editorial: 1
+  render: 1
