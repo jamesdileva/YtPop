@@ -155,4 +155,4 @@
 - None. ffmpeg N-124616 + ffprobe present on PATH.
 
 ### Commit
-- Pending: `S4: feat(ingestion): ffmpeg probe/normalize + analyze` (+ hash).
+- `ef18187 S4: feat(ingestion): ffmpeg probe/normalize + analyze` (9 files).
