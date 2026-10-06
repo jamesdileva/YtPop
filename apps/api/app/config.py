@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     api_host: str = "127.0.0.1"
     api_port: int = 8000
     db_path: str = "data/database/mega_clipper.db"
+    youtube_api_key: str = ""
+    youtube_quota_daily_budget: int = 10000
 
     model_config = {"env_prefix": "YTPOP_"}
 

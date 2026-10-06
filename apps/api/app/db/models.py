@@ -192,7 +192,6 @@ class Render(Base):
 
 class Job(Base):
     __tablename__ = "jobs"
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     type: Mapped[str] = mapped_column(String(64), index=True)
     status: Mapped[str] = mapped_column(String(32), default="QUEUED", index=True)
@@ -209,4 +208,37 @@ class Job(Base):
     )
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+
+
+class SourceSnapshot(Base):
+    """One metadata observation per fetch — enables velocity calculations (S3)."""
+
+    __tablename__ = "source_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    source_id: Mapped[int] = mapped_column(
+        ForeignKey("sources.id"), index=True
+    )
+    view_count: Mapped[int] = mapped_column(Integer, default=0)
+    like_count: Mapped[int] = mapped_column(Integer, default=0)
+    comment_count: Mapped[int] = mapped_column(Integer, default=0)
+    taken_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class DiscoveryRun(Base):
+    """Ledger of YouTube API calls — quota guard reads today's sum (S3)."""
+
+    __tablename__ = "discovery_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_type: Mapped[str] = mapped_column(String(32), index=True)
+    region: Mapped[str] = mapped_column(String(8), default="")
+    category: Mapped[str] = mapped_column(String(64), default="")
+    units_consumed: Mapped[int] = mapped_column(Integer, default=0)
+    source_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
     )

@@ -93,3 +93,36 @@
 
 ### Commit
 - `91a41fc S2: feat(db,api): versioned schema + sources CRUD` (15 files).
+
+## S3 — 2026-10-06 — YouTube Discovery (done)
+
+### Planned
+- Thin YouTube Data API adapter (mostPopular/search/video/channel/categories) with quota costs.
+- `source_snapshots` + `discovery_runs` tables, velocity math, quota guard, trend scoring.
+- Routes: `POST /sources/discover`, `POST /sources/search`, `POST /trends/discover`, `GET /trends`, `GET /trends/{id}`.
+- Dashboard renders Trending now / Recently rising / Fastest growing / Top categories.
+- All tests mocked (no live quota in CI).
+
+### Did
+- [x] `app/config.py` += `youtube_api_key`, `youtube_quota_daily_budget` (env `YTPOP_*`); `httpx` → runtime dep
+- [x] `app/db/models.py` += `SourceSnapshot`, `DiscoveryRun`; migration `2eaa7f7b18a5` (chains on `deaadcfd8d2e`)
+- [x] `app/services/youtube_service.py` — normalize, ISO8601 duration, costs (search=100, rest=1), `YouTubeAPIError`
+- [x] `app/domain/discovery/service.py` — upsert+snapshot, velocity (views/hr), `compute_trend_score`, quota guard (429), 4 sections
+- [x] `app/api/routes/trends.py` + registered; `get_youtube_service` injectable for tests
+- [x] Frontend `hooks/useTrends.ts` + 4 Dashboard sections; `App.test.tsx` routes fetch by URL + `cleanup` fix
+- [x] `tests/discovery/` — 17 tests (adapter 7, domain 7, routes 3)
+
+### Verified
+- `pytest tests/ -q` → `22 passed` (5 prior + 17 new).
+- `vitest` → `4 passed`; `tsc --noEmit` clean.
+- Migration: `downgrade -1` drops 2 tables, `upgrade head` restores; head `2eaa7f7b18a5`.
+- Live (port 8002, real DB, seeded 25 sources × 2 snapshots, no API key used): `GET /trends` → 4 sections, top `s3live24`, categories 9/8/8; `POST /trends/discover` → updated 25; deps `database:ok`. Seed cleaned (`remaining: 0`). No `YTPOP_YOUTUBE_API_KEY` set — live-API discover untested, adapter covered by mocks.
+
+### Next
+- S4 Media Ingestion per roadmap §26 (FFmpeg probe/normalize/audio/thumb, `USER_OWNED` fixtures only).
+
+### Blockers
+- None.
+
+### Commit
+- Pending: `S3: feat(discovery): mostPopular + quota guard + trends` (+ hash).
