@@ -156,3 +156,34 @@
 
 ### Commit
 - `ef18187 S4: feat(ingestion): ffmpeg probe/normalize + analyze` (9 files).
+
+## S5 — 2026-10-06 — Transcription (done)
+
+### Planned
+- faster-whisper adapter (word timings preserved), transcribe domain with sha-idempotency + `transcript.json` + TRANSCRIBE job row.
+- Routes `POST /sources/{id}/transcribe`, `GET /sources/{id}/transcript`; whisper in health deps.
+- Sources/transcript UI section; real-model test on SAPI speech; mocked route tests.
+
+### Did
+- [x] `pyproject.toml` += `faster-whisper`, `av<19` (pin — see blockers); `config.py` += whisper model/device/compute
+- [x] `app/services/whisper_service.py` — lazy model, word-level segments, `TranscriptionError`
+- [x] `app/domain/analysis/service.py` — wav lookup (audio asset or extract from raw), sha256 skip unless force, json artifact, COMPLETED job row
+- [x] `Transcript.audio_sha256` + migration `695eeee506a4` (server_default for non-empty tables)
+- [x] Routes + `get_whisper_service` injectable; request `model` override honored (was silently ignored — fixed, see verified)
+- [x] Frontend `useSources`/`useTranscript` + Sources section with segment timeline
+- [x] `tests/transcription/` — 7 tests (2 real tiny-model incl. word-timing + monotonic asserts, 5 fake-service incl. skip/force/404/400)
+
+### Verified
+- `pytest tests/ -q` → `39 passed`; `vitest` → `5 passed`; `tsc` clean.
+- Migration down/up cycle green, head `695eeee506a4`.
+- Live (:8004, SAPI speech muxed to mp4 as USER_OWNED stand-in): analyze 200 → transcribe 200 `{lang en, 2 segs, skipped False}` → GET shows words; re-POST → `skipped True`; artifact `transcripts/{id}.json` 1495B; deps `whisper:ok`. Override check (:8005): `{"model":"tiny"}` → response `tiny`. All seeds/files/rows cleaned.
+- Design note: `analyze` on a bare wav correctly 400s (verify requires a+v source media) — transcribe derives its own wav from the raw asset.
+
+### Next
+- S6 Clip Detection V1 per roadmap §26 (transcript windows + keyword/semantic scoring, golden test).
+
+### Blockers
+- None. Notes: `faster-whisper 1.2.1 + av 19` breaks (`metadata_errors` kwarg removed) → pinned `av<19` (18.1.0 verified). `python -m alembic` required (exe not on PATH).
+
+### Commit
+- Pending: `S5: feat(transcription): whisper + transcript pipeline` (+ hash).

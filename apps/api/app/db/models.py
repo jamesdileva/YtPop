@@ -89,6 +89,7 @@ class Transcript(Base):
     model: Mapped[str] = mapped_column(String(64), default="")
     text: Mapped[str] = mapped_column(Text, default="")
     segments_json: Mapped[str] = mapped_column(Text, default="[]")
+    audio_sha256: Mapped[str] = mapped_column(String(64), default="")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

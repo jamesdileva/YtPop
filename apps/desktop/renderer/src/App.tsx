@@ -1,5 +1,10 @@
 import { useHealth } from "./hooks/useHealth";
 import { useTrends, type TrendBrief } from "./hooks/useTrends";
+import {
+  useSources,
+  useTranscript,
+  type SourceBrief,
+} from "./hooks/useSources";
 
 function TrendList({ items, testId }: { items: TrendBrief[]; testId: string }) {
   if (items.length === 0) return <p>No data yet — run discovery.</p>;
@@ -14,12 +19,34 @@ function TrendList({ items, testId }: { items: TrendBrief[]; testId: string }) {
   );
 }
 
+function SourceRow({ source }: { source: SourceBrief }) {
+  const transcript = useTranscript(source.id);
+  return (
+    <li>
+      {source.title || source.external_id} ({source.status})
+      <div data-testid={`transcript-${source.id}`}>
+        {transcript.loading ? (
+          <p>Loading transcript…</p>
+        ) : transcript.data ? (
+          <p>
+            [{transcript.data.segments.length} segments,{" "}
+            {transcript.data.language}]{" "}
+            {transcript.data.text.slice(0, 200)}
+          </p>
+        ) : (
+          <p>No transcript yet.</p>
+        )}
+      </div>
+    </li>
+  );
+}
 export default function App() {
   const health = useHealth();
   const trends = useTrends();
+  const sources = useSources();
   return (
     <main style={{ fontFamily: "system-ui", padding: 24 }}>
-      <h1>YtPop — Dashboard (S3)</h1>
+      <h1>YtPop — Dashboard (S5)</h1>
       <p data-testid="api-status">
         {health.loading ? "API: checking…" : `API: ${health.status}${health.version ? ` (${health.version})` : ""}`}
       </p>
@@ -49,6 +76,22 @@ export default function App() {
                 <li key={c.category}>
                   {c.category} ({c.count})
                 </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+      <section>
+        <h2>Sources</h2>
+        <div data-testid="sources-list">
+          {sources.loading ? (
+            <p>Loading sources…</p>
+          ) : sources.data.length === 0 ? (
+            <p>No sources yet — run discovery.</p>
+          ) : (
+            <ul>
+              {sources.data.map((s) => (
+                <SourceRow key={s.id} source={s} />
               ))}
             </ul>
           )}

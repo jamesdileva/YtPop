@@ -28,6 +28,12 @@ def health_dependencies() -> dict:
     except Exception:
         deps["ffmpeg"] = "unavailable"
     try:
+        import faster_whisper  # noqa: F401
+
+        deps["whisper"] = "ok"
+    except Exception:
+        deps["whisper"] = "unavailable"
+    try:
         from sqlalchemy import text
 
         from app.db.database import get_engine

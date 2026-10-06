@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     db_path: str = "data/database/mega_clipper.db"
     youtube_api_key: str = ""
     youtube_quota_daily_budget: int = 10000
+    whisper_model: str = "base"
+    whisper_device: str = "cpu"
+    whisper_compute_type: str = "int8"
 
     model_config = {"env_prefix": "YTPOP_"}
 
