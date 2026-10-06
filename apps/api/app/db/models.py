@@ -230,7 +230,6 @@ class SourceSnapshot(Base):
 
 class DiscoveryRun(Base):
     """Ledger of YouTube API calls — quota guard reads today's sum (S3)."""
-
     __tablename__ = "discovery_runs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -239,6 +238,26 @@ class DiscoveryRun(Base):
     category: Mapped[str] = mapped_column(String(64), default="")
     units_consumed: Mapped[int] = mapped_column(Integer, default=0)
     source_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class MediaAsset(Base):
+    """File artifact linked to a source (S4): raw/normalized/audio/thumbnail."""
+
+    __tablename__ = "media_assets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    source_id: Mapped[int] = mapped_column(
+        ForeignKey("sources.id"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(32), index=True)
+    path: Mapped[str] = mapped_column(Text)
+    width: Mapped[int] = mapped_column(Integer, default=0)
+    height: Mapped[int] = mapped_column(Integer, default=0)
+    duration: Mapped[float] = mapped_column(Float, default=0.0)
+    codec: Mapped[str] = mapped_column(String(32), default="")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

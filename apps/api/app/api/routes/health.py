@@ -17,8 +17,16 @@ def health_dependencies() -> dict:
         "youtube": "not_configured",
         "whisper": "not_configured",
         "ollama": "not_configured",
-        "ffmpeg": "not_configured",
     }
+    try:
+        import shutil
+
+        if shutil.which("ffmpeg") and shutil.which("ffprobe"):
+            deps["ffmpeg"] = "ok"
+        else:
+            deps["ffmpeg"] = "unavailable"
+    except Exception:
+        deps["ffmpeg"] = "unavailable"
     try:
         from sqlalchemy import text
 

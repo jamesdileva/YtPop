@@ -126,3 +126,33 @@
 
 ### Commit
 - `9f24b2b S3: feat(discovery): mostPopular + quota guard + trends` (19 files).
+
+## S4 — 2026-10-06 — Media Ingestion (done)
+
+### Planned
+- FFmpeg adapter (arg-arrays only, path guard to `data/`), probe/normalize/16kHz-audio/thumb.
+- `media_assets` table + migration, `POST /sources/{id}/analyze` (probe-only) with rights-basis gate.
+- `ffmpeg` in `health/dependencies` via `shutil.which`.
+- Tests on tiny lavfi fixtures; negatives for traversal/corrupt/bad-basis.
+
+### Did
+- [x] `app/services/ffmpeg_service.py` — `run_cmd` (shell=False), `resolve_data_path`, `probe`, `normalize`, `extract_audio`, `extract_thumbnail`
+- [x] `app/services/media_ingestion.py` — `check_basis` (USER_OWNED/LICENSED/CC/PD), `verify_media`, `probe_source`, `ingest_source` (4 assets + rights row)
+- [x] `MediaAsset` model + migration `0de9da1a452c` (chains on `2eaa7f7b18a5`)
+- [x] `POST /sources/{id}/analyze` (400 traversal/corrupt/basis, 404 missing source); ffmpeg health probe
+- [x] `tests/test_ingestion.py` — 10 tests incl. metachar-filename (arg-array proof) + repo-root regression test
+
+### Verified
+- `pytest tests/ -q` → `32 passed` (22 prior + 10 new).
+- Migration: `downgrade -1` drops `media_assets`, `upgrade head` restores; head `0de9da1a452c`.
+- Live (:8003, lavfi fixture as USER_OWNED stand-in): analyze 200 `{duration 3.0, 320x240, a+v, asset 1}`; traversal → 400; deps `ffmpeg:ok database:ok`. Seed + fixture cleaned.
+- Bug found by live proof: `repo_data_dir()` used `parents[3]` → wrote to `apps/data/`. Fixed to share `repo_root()` from `database.py` + regression test; stray tree removed, DB rows cleaned.
+
+### Next
+- S5 Transcription per roadmap §26 (faster-whisper → segments + `transcript.json`, word timings preserved).
+
+### Blockers
+- None. ffmpeg N-124616 + ffprobe present on PATH.
+
+### Commit
+- Pending: `S4: feat(ingestion): ffmpeg probe/normalize + analyze` (+ hash).

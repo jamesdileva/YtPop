@@ -1,6 +1,7 @@
 import structlog
 from fastapi import FastAPI
 
+from app.api.routes.analysis import router as analysis_router
 from app.api.routes.health import router as health_router
 from app.api.routes.sources import router as sources_router
 from app.api.routes.trends import router as trends_router
@@ -12,6 +13,7 @@ log = structlog.get_logger()
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name, version=settings.version)
     app.include_router(health_router, prefix="/api/v1")
+    app.include_router(analysis_router, prefix="/api/v1")
     app.include_router(sources_router, prefix="/api/v1")
     app.include_router(trends_router, prefix="/api/v1")
     return app
