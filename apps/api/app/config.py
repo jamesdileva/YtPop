@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     whisper_model: str = "base"
     whisper_device: str = "cpu"
     whisper_compute_type: str = "int8"
+    clip_embeddings: bool = True
 
     model_config = {"env_prefix": "YTPOP_"}
 

@@ -187,3 +187,35 @@
 
 ### Commit
 - `1760f62 S5: feat(transcription): whisper + transcript pipeline` (17 files).
+
+## S6 — 2026-10-06 — Clip Detection V1/V2 (done)
+
+### Planned
+- Sliding-window candidates (5–90s) + keyword scoring (V1) + embedding similarity (V2, MiniLM).
+- `configs/scoring.yaml` weights (no hardcode), store ALL candidates, MMR selection.
+- Routes `POST /sources/{id}/find-moments`, `GET /moments`, `GET /moments/{id}`.
+- Golden test (±2s), determinism, human-useful top-10 check.
+
+### Did
+- [x] `pyproject.toml` += `sentence-transformers`, `pyyaml`; `config.py` += `clip_embeddings` flag
+- [x] `configs/scoring.yaml` — windows/weights/lexicons/min_wps
+- [x] `app/domain/clipping/service.py` — windows, keyword feats (hook/relevance/novelty/emotion/payoff/completeness/dead_air/dependency), `Embedder` (lazy, L2-normed), MMR `select_top`, `find_moments` (fresh replace, all stored)
+- [x] Moments routes + registered; `GET` lists score-desc
+- [x] `tests/clipping/` — 11 tests (golden ±2s, determinism, all-stored, weights-editable, fake-embed semantic, real-embedder shape, route 200/404/400)
+
+### Verified
+- `pytest tests/ -q` → `50 passed` (39 prior + 11 new).
+- Golden: known 7-seg transcript → top starts ≈10s ("final boss" hook) within ±2s.
+- Live (:8006, 47s 8-utterance SAPI fixture, real embeddings): 12 segs → 53 candidates; top-10 all hook/emotion-led (scores 56–83), filler ("bread and milk", "Um, well") absent from top.
+- Human check (top-10 vs random-10, seed 7): top wins — every top window holds a question/payoff/emotion peak; random set has 3–4 filler-led windows. Exit holds.
+- Tuning note (not blocking): top-10 has 5 near-dupe windows (5.7–28/31/33s); MMR redundancy (25 × sim) < score spread (~82 vs ~68), so overlap persists. S7/S10 fix: non-overlap suppression or higher redundancy weight. Late hook ("Warning…secret", ~40s) also missed top-10 — same cause.
+- No migration (moments table from S2), no frontend changes. Seeds/files/rows cleaned.
+
+### Next
+- S7 Clip Review UI per roadmap §26 (preview/trim/approve/reject + feedback capture, `PATCH /moments/{id}`).
+
+### Blockers
+- None. Note: pip downgraded setuptools 84→81 (st dependency) — harmless.
+
+### Commit
+- Pending: `S6: feat(clipping): windows + keyword/semantic scoring` (+ hash).

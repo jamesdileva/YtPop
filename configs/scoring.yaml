@@ -1,0 +1,72 @@
+# S6 clip scoring — weights + lexicons. Tunable without code changes.
+# Final score = weighted sum of positives minus weighted penalties,
+# normalized to ~0..100. Selection uses MMR over final_score (see
+# app/domain/clipping/service.py).
+
+windows:
+  min_duration: 5.0
+  max_duration: 90.0
+  target_candidates_per_video: 10
+  # max consecutive transcript segments merged into one window
+  max_segments_per_window: 8
+
+weights:
+  hook: 20.0
+  relevance: 15.0
+  novelty: 10.0
+  emotion: 15.0
+  payoff: 10.0
+  completeness: 5.0
+  semantic_relevance: 15.0
+  semantic_novelty: 10.0
+  redundancy: 25.0
+  dead_air: 15.0
+  context_dependency: 10.0
+
+# substring lexicons (lowercased match)
+hook_words:
+  - "what if"
+  - "how to"
+  - "why"
+  - "never"
+  - "always"
+  - "secret"
+  - "warning"
+  - "breaking"
+  - "watch"
+  - "look at this"
+
+emotion_words:
+  - "wow"
+  - "amazing"
+  - "insane"
+  - "incredible"
+  - "hilarious"
+  - "shocking"
+  - "unbelievable"
+  - "crazy"
+  - "epic"
+  - "no way"
+
+payoff_words:
+  - "best"
+  - "first"
+  - "world record"
+  - "winner"
+  - "finally"
+  - "result"
+  - "answer"
+  - "reveal"
+
+# sentence starts that usually need outside context (penalized)
+dangling_starts:
+  - "it "
+  - "this "
+  - "that "
+  - "they "
+  - "he "
+  - "she "
+  - "and then"
+
+# words-per-second below this counts as dead air
+min_wps: 1.2
