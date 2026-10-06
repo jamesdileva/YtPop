@@ -92,4 +92,4 @@
 - None. Note: `alembic` exe not on PATH in this shell — use `python -m alembic`.
 
 ### Commit
-- Pending: `S2: feat(db,api): versioned schema + sources CRUD` (+ hash).
+- `91a41fc S2: feat(db,api): versioned schema + sources CRUD` (15 files).
