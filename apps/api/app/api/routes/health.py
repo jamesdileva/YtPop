@@ -12,16 +12,25 @@ def health() -> dict:
 
 @router.get("/health/dependencies")
 def health_dependencies() -> dict:
-    # S1: static checks only; S2+ wires real DB/YT/Whisper/Ollama/FFmpeg probes.
+    deps: dict[str, str] = {
+        "api": "ok",
+        "youtube": "not_configured",
+        "whisper": "not_configured",
+        "ollama": "not_configured",
+        "ffmpeg": "not_configured",
+    }
+    try:
+        from sqlalchemy import text
+
+        from app.db.database import get_engine
+
+        with get_engine().connect() as conn:
+            conn.execute(text("SELECT 1"))
+        deps["database"] = "ok"
+    except Exception:
+        deps["database"] = "unavailable"
     return {
         "status": "ok",
         "version": settings.version,
-        "dependencies": {
-            "api": "ok",
-            "database": "not_configured",
-            "youtube": "not_configured",
-            "whisper": "not_configured",
-            "ollama": "not_configured",
-            "ffmpeg": "not_configured",
-        },
+        "dependencies": deps,
     }

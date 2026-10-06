@@ -63,3 +63,33 @@
 
 ### Commit
 - `4a0923b S1: feat(api,desktop): foundation health loop` (27 files, Electron+React+FastAPI health).
+
+## S2 — 2026-10-06 — Database + Migrations (done)
+
+### Planned
+- SQLAlchemy 2 models for 10 tables per `architecture.md` §6.
+- Alembic from day one (up/down/up green, no manual schema edits).
+- Minimal Sources API: `POST /sources`, `GET /sources`, `GET /sources/{id}`.
+- `health/dependencies` probes real DB.
+
+### Did
+- [x] `apps/api/app/db/{base,models,database}.py` — Source, TrendEvent, TrendSource, Transcript, Moment, RightsRecord, Episode, EpisodeSegment, Render, Job
+- [x] `database.py` resolves `data/database/mega_clipper.db` to repo root, `init_db()` creates dirs
+- [x] `apps/api/{alembic.ini,alembic/env.py,alembic/script.py.mako}` + revision `deaadcfd8d2e s2 init core tables`
+- [x] `apps/api/app/api/routes/sources.py` + registered in `main.py`; `pyproject.toml` += sqlalchemy, alembic
+- [x] `apps/api/tests/test_db.py` (tables-exist + create/read + 404, isolated in-memory DB)
+
+### Verified
+- `python -m alembic downgrade -1` → only `alembic_version` left; `upgrade head` → all 10 tables back (`sources, trend_events, trend_sources, transcripts, moments, episodes, episode_segments, jobs, rights_records, renders`); DB 98304 bytes.
+- `pytest tests/test_db.py tests/test_health.py -v` → `5 passed`.
+- Live (port 8001, real DB): `/health/dependencies` → `database:ok`; `POST /sources` → id 1 `DISCOVERED`; `GET /sources/1` round-trips; scratch row deleted after (`remaining: 0`).
+- `git status` shows DB file ignored (not staged) — `.gitignore` holds.
+
+### Next
+- S3 YouTube Discovery per roadmap §26 (adapter + snapshots + quota guard, mocked tests).
+
+### Blockers
+- None. Note: `alembic` exe not on PATH in this shell — use `python -m alembic`.
+
+### Commit
+- Pending: `S2: feat(db,api): versioned schema + sources CRUD` (+ hash).
