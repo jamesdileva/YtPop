@@ -218,4 +218,4 @@
 - None. Note: pip downgraded setuptools 84→81 (st dependency) — harmless.
 
 ### Commit
-- Pending: `S6: feat(clipping): windows + keyword/semantic scoring` (+ hash).
+- `d446d7d S6: feat(clipping): windows + keyword/semantic scoring` (12 files).
