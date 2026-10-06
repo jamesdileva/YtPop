@@ -62,4 +62,4 @@
 - None. Note: `npm install` pulls `electron` binary (~large) — expected; deprecation warnings for `whatwg-encoding`/Vite CJS are upstream noise.
 
 ### Commit
-- Pending: `S1: feat(api,desktop): foundation health loop` (+ hash).
+- `4a0923b S1: feat(api,desktop): foundation health loop` (27 files, Electron+React+FastAPI health).
