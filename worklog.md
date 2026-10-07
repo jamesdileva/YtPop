@@ -340,4 +340,4 @@
 - None. Note: default editor model qwen3.5:9b is configured but live proof used qwen3:4b for speed; 9b path untested — same adapter, model name only.
 
 ### Commit
-- Pending: `S10: feat(editorial): ollama planning + generate` (+ hash).
+- `e2edfa4 S10: feat(editorial): ollama planning + generate` (16 files).
