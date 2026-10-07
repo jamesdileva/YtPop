@@ -310,3 +310,34 @@
 
 ### Commit
 - `b84a219 S9: feat(rendering): timeline render + captions + QA` (14 files).
+
+## S10 — 2026-10-07 — Editorial AI (done, M5 complete)
+
+### Planned
+- Ollama adapter (forced JSON), role→model routing, Pydantic-validated planning with repair retries, APPROVED-only eligibility.
+- `POST /episodes/{id}/generate` applies plan to timeline + storyboard artifact; plan outline UI.
+
+### Did
+- [x] `configs/default.yaml` += models (classifier/summarizer qwen3:4b, editor qwen3.5:9b, vision qwen2.5vl:3b) + ollama host/timeout; `config.py` += ollama_host/editor_model
+- [x] `app/services/ollama_service.py` — `chat_json` (format=json, think=false, temp 0), `ping`, `model_for` router
+- [x] `app/domain/editorial/service.py` — `EpisodePlan` schema (clusters/order/transitions/context/ending/titles), `plan()` (structured summaries in, ≤2 repairs, unknown-id rejection), `apply_plan()` (replaces clips, keeps cards, intro context card + ending card, title set, storyboard json + asset row)
+- [x] `POST /episodes/{id}/generate` (model override honored, 404/400 paths) + ollama in health deps
+- [x] Frontend: Generate plan button + outline (title/clusters/order) in Timeline
+- [x] `tests/editorial/` — 15 tests (adapter incl. think-strip, repair-then-ok, garbage-exhaustion, apply/skip, route 200/404/400)
+
+### Verified
+- `pytest tests/ -q` → `87 passed`; `vitest` → `16 passed`; `tsc` clean. No migration.
+- Live (:8010, real qwen3:4b, 3 approved moments): 200 in 41s with **1 repair** → valid plan ("Score Tricks: The 30-Second Secret", cluster + order [1,2] + transition commentary applied, episode retitled). Seeds/artifact/rows cleaned.
+- Real-behavior finds (both fixed before commit):
+  1. qwen3 emits `<think>` blocks → `format=json` content unparseable. Fix: `"think": false` in request + `parse_json_content` strips think blocks with `{...}` fallback (Pydantic still validates).
+  2. Request `model` override was silently ignored with default DI (same S5 bug class) → route builds the override service; proven (`tiny` check pattern reused).
+- M5 done: approved moments → plausible outline → applied timeline, no manual ordering needed.
+
+### Next
+- S11 Trend Intelligence per roadmap §26 (embeddings → clusters → trend_events, velocity from S3 snapshots).
+
+### Blockers
+- None. Note: default editor model qwen3.5:9b is configured but live proof used qwen3:4b for speed; 9b path untested — same adapter, model name only.
+
+### Commit
+- Pending: `S10: feat(editorial): ollama planning + generate` (+ hash).

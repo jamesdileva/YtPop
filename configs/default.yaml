@@ -17,3 +17,13 @@ workers:
   vision: 1
   editorial: 1
   render: 1
+models:
+  classifier: qwen3:4b
+  summarizer: qwen3:4b
+  editor: qwen3.5:9b
+  vision: qwen2.5vl:3b
+ollama:
+  host: http://127.0.0.1:11434
+  timeout_seconds: 300
+  num_predict: 2000
+  temperature: 0.0

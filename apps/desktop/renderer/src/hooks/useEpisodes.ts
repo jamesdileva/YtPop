@@ -28,6 +28,22 @@ export type RenderResult = {
   qa: RenderQA;
 };
 
+export type PlanOutline = {
+  title: string;
+  opening_hook: string;
+  story_clusters: { name: string; moment_ids: number[]; rationale: string }[];
+  segment_order: number[];
+  transitions: { after_moment_id: number; text: string }[];
+  ending: string;
+  titles: string[];
+};
+
+export type GenerateResult = {
+  plan: PlanOutline;
+  applied: { applied: number; skipped: { moment_id: number; reason: string }[] };
+  episode: Episode;
+};
+
 export function renderFileUrl(renderId: number, base?: string): string {
   return apiUrl(`/api/v1/renders/${renderId}/file`, base);
 }
@@ -126,5 +142,18 @@ export function useEpisodes(base?: string) {
     [base],
   );
 
-  return { data, loading, refresh, create, addClip, move, remove, render };
+  const generate = useCallback(
+    async (episodeId: number) => {
+      const out = await req<GenerateResult>(
+        `/api/v1/episodes/${episodeId}/generate`,
+        { method: "POST", body: JSON.stringify({}) },
+        base,
+      );
+      setData((prev) => prev.map((e) => (e.id === out.episode.id ? out.episode : e)));
+      return out;
+    },
+    [base],
+  );
+
+  return { data, loading, refresh, create, addClip, move, remove, render, generate };
 }

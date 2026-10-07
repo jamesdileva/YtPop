@@ -45,6 +45,25 @@ function mockApi(calls: string[] = []) {
             }),
         });
       }
+      if (u.includes("/generate")) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              plan: {
+                title: "AI Show",
+                opening_hook: "Watch",
+                story_clusters: [{ name: "Main", moment_ids: [5], rationale: "r" }],
+                segment_order: [5],
+                transitions: [],
+                ending: "Bye",
+                titles: ["AI Show"],
+              },
+              applied: { applied: 1, skipped: [] },
+              episode: { ...EPISODES[0], title: "AI Show" },
+            }),
+        });
+      }
       if (u.includes("/api/v1/episodes") && (opts?.method === "POST" || opts?.method === "PATCH" || opts?.method === "DELETE")) {
         // echo the stored episode (simulate server echo with reorder applied for rebuild)
         const ep = { ...EPISODES[0] };
@@ -113,6 +132,18 @@ describe("Episodes timeline", () => {
     expect(src).toContain("/api/v1/renders/3/file");
     expect(screen.getByTestId("render-qa-1").textContent).toContain("QA pass");
     expect(screen.getByTestId("render-qa-1").textContent).toContain("1280x720");
+  });
+
+  it("generate shows the AI plan outline", async () => {
+    render(<Episodes />);
+    await waitFor(() => expect(screen.getByTestId("episode-1")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("episode-1"));
+    await waitFor(() => expect(screen.getByTestId("generate-btn-1")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("generate-btn-1"));
+    await waitFor(() =>
+      expect(screen.getByTestId("plan-title-1").textContent).toContain("AI Show"),
+    );
+    expect(screen.getByTestId("plan-order-1").textContent).toContain("5");
   });
 
   it("failed render surfaces the error", async () => {

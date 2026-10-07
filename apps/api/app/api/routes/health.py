@@ -34,6 +34,18 @@ def health_dependencies() -> dict:
     except Exception:
         deps["whisper"] = "unavailable"
     try:
+        from app.services.ollama_service import OllamaService
+
+        from app.config import settings as _settings
+
+        if OllamaService(model="__ping__",
+                         host=_settings.ollama_host).ping():
+            deps["ollama"] = "ok"
+        else:
+            deps["ollama"] = "unavailable"
+    except Exception:
+        deps["ollama"] = "unavailable"
+    try:
         from sqlalchemy import text
 
         from app.db.database import get_engine

@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     whisper_device: str = "cpu"
     whisper_compute_type: str = "int8"
     clip_embeddings: bool = True
+    ollama_host: str = "http://127.0.0.1:11434"
+    ollama_editor_model: str = "qwen3.5:9b"
 
     model_config = {"env_prefix": "YTPOP_"}
 

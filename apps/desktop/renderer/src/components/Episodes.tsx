@@ -3,6 +3,7 @@ import {
   renderFileUrl,
   useEpisodes,
   type Episode,
+  type GenerateResult,
   type RenderResult,
 } from "../hooks/useEpisodes";
 import { useMoments } from "../hooks/useMoments";
@@ -80,15 +81,20 @@ function Timeline({
   remove,
   addClip,
   render,
+  generate,
 }: {
   ep: Episode;
   move: (ep: Episode, index: number, delta: number) => Promise<Episode>;
   remove: (episodeId: number, segmentId: number) => Promise<Episode>;
   addClip: (episodeId: number, momentId: number) => Promise<Episode>;
   render: (episodeId: number, preset: string) => Promise<RenderResult>;
+  generate: (episodeId: number) => Promise<GenerateResult>;
 }) {
   const approved = useMoments("APPROVED");
   const [momentId, setMomentId] = useState("");
+  const [plan, setPlan] = useState<GenerateResult["plan"] | null>(null);
+  const [genBusy, setGenBusy] = useState(false);
+  const [genError, setGenError] = useState("");
 
   return (
     <div data-testid={`timeline-${ep.id}`}>
@@ -137,12 +143,46 @@ function Timeline({
         )}
       </div>
       <RenderPanel ep={ep} render={render} />
+      <div data-testid={`generate-panel-${ep.id}`}>
+        <button
+          data-testid={`generate-btn-${ep.id}`}
+          disabled={genBusy}
+          onClick={() => {
+            setGenBusy(true);
+            setGenError("");
+            generate(ep.id)
+              .then((out) => setPlan(out.plan))
+              .catch((e: unknown) =>
+                setGenError(e instanceof Error ? e.message : "generate failed"),
+              )
+              .finally(() => setGenBusy(false));
+          }}
+        >
+          {genBusy ? "Planning…" : "Generate plan"}
+        </button>
+        {genError && <p data-testid={`generate-error-${ep.id}`}>{genError}</p>}
+        {plan && (
+          <div data-testid={`plan-${ep.id}`}>
+            <p data-testid={`plan-title-${ep.id}`}>{plan.title}</p>
+            <ul>
+              {plan.story_clusters.map((c) => (
+                <li key={c.name} data-testid={`plan-cluster-${ep.id}`}>
+                  {c.name}: {c.moment_ids.join(", ")}
+                </li>
+              ))}
+            </ul>
+            <p data-testid={`plan-order-${ep.id}`}>
+              Order: {plan.segment_order.join(" → ")}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 export default function Episodes() {
-  const { data, loading, refresh, create, move, remove, addClip, render } =
+  const { data, loading, refresh, create, move, remove, addClip, render, generate } =
     useEpisodes();
   const [title, setTitle] = useState("");
   const [openId, setOpenId] = useState<number | null>(null);
@@ -187,6 +227,7 @@ export default function Episodes() {
                   remove={remove}
                   addClip={addClip}
                   render={render}
+                  generate={generate}
                 />
               )}
             </li>
