@@ -400,4 +400,4 @@
 - None. Note: live-script console needed ASCII-safe printing (cp1252 vs →); app messages unaffected.
 
 ### Commit
-- Pending: `S12: feat(rights): state machine + publish blocker` (+ hash).
+- `5e034a6 S12: feat(rights): state machine + publish blocker` (13 files).
