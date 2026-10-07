@@ -1,0 +1,26 @@
+# S8 episode templates — defaults applied at POST /episodes (no AI).
+templates:
+  daily_highlights:
+    title_prefix: "Daily Highlights"
+    format: "daily_highlights"
+    target_duration_minutes: 20
+    intro_card_seconds: 4.0
+    outro_card_seconds: 5.0
+    default_transition: "cut"
+    caption_style: "standard"
+  weekly_recap:
+    title_prefix: "Weekly Recap"
+    format: "weekly_recap"
+    target_duration_minutes: 45
+    intro_card_seconds: 5.0
+    outro_card_seconds: 6.0
+    default_transition: "fade"
+    caption_style: "standard"
+  shorts:
+    title_prefix: "Short"
+    format: "shorts"
+    target_duration_minutes: 1
+    intro_card_seconds: 2.0
+    outro_card_seconds: 2.0
+    default_transition: "cut"
+    caption_style: "bold"

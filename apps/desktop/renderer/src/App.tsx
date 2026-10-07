@@ -1,6 +1,7 @@
 import { useHealth } from "./hooks/useHealth";
 import { useTrends, type TrendBrief } from "./hooks/useTrends";
 import Review from "./components/Review";
+import Episodes from "./components/Episodes";
 import {
   useSources,
   useTranscript,
@@ -99,6 +100,7 @@ export default function App() {
         </div>
       </section>
       <Review />
+      <Episodes />
       <nav>
         <ul>
           {["Dashboard", "Trends", "Sources", "Clips", "Episodes", "Review", "Settings"].map((p) => (

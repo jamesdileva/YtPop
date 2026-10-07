@@ -249,3 +249,30 @@
 
 ### Commit
 - `2ad9c63 S7: feat(review): queue UI + patch/preview/feedback` (12 files).
+
+## S8 — 2026-10-07 — Episode Builder (done)
+
+### Planned
+- Episodes/segments CRUD, server-side order, duration roll-up + over/under, template stub.
+- Timeline UI (add/reorder/delete, duration bar); 5-clip build/reorder/reload proof.
+
+### Did
+- [x] `configs/editorial.yaml` — daily_highlights/weekly_recap/shorts templates
+- [x] `app/api/routes/episodes.py` — create (template intro/outro cards), list/get (roll-up), patch, add-segment (APPROVED-only moments, duration snapshot), patch/duplicate/delete segment, rebuild (exact-set reorder)
+- [x] Frontend `useEpisodes` + `Episodes` (create, open timeline, up/down/delete, add-by-moment-id, over/under bar)
+- [x] `tests/test_episodes.py` — 6 tests (template, 5-clip+reorder+reload, wrong-set 400, unapproved 400, trim/dup/delete, patch/404s)
+
+### Verified
+- `pytest tests/ -q` → `63 passed`; `vitest` → `13 passed`; `tsc` clean.
+- Live (:8008): create → 2 cards; +5 clips → actual 49.0 (9+40), over/under −1151; reversed rebuild → reload order intact `[None,5,4,3,2,1,None]`. Seeds cleaned.
+- Fixes during sprint: duplicate placed after next segment (sequence+1 + id tiebreak) → same-sequence + id tiebreak puts clone directly after original; frontend `req()` needs `ok:true` mocks.
+- No migration (tables from S2).
+
+### Next
+- S9 Rendering + Captions per roadmap §26 (filter-graph render, presets, QA probe, in-app playback).
+
+### Blockers
+- None.
+
+### Commit
+- Pending: `S8: feat(episodes): manual timeline builder` (+ hash).

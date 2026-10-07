@@ -53,7 +53,10 @@ describe("App health badge + trends sections", () => {
           return Promise.resolve({ json: () => Promise.resolve(TRENDS_FIXTURE) });
         }
         if (u.includes("/moments")) {
-          return Promise.resolve({ json: () => Promise.resolve([]) });
+          return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+        }
+        if (u.includes("/episodes")) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
         }
         if (u.includes("/transcript")) {
           return Promise.resolve({
