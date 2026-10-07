@@ -111,6 +111,9 @@ class Moment(Base):
     editorial_score: Mapped[float] = mapped_column(Float, default=0.0)
     final_score: Mapped[float] = mapped_column(Float, default=0.0)
     status: Mapped[str] = mapped_column(String(32), default="CANDIDATE")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    category: Mapped[str] = mapped_column(String(64), default="")
+    is_best: Mapped[bool] = mapped_column(default=False)
 
 
 class RightsRecord(Base):
@@ -246,7 +249,6 @@ class DiscoveryRun(Base):
 
 class MediaAsset(Base):
     """File artifact linked to a source (S4): raw/normalized/audio/thumbnail."""
-
     __tablename__ = "media_assets"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -259,6 +261,26 @@ class MediaAsset(Base):
     height: Mapped[int] = mapped_column(Integer, default=0)
     duration: Mapped[float] = mapped_column(Float, default=0.0)
     codec: Mapped[str] = mapped_column(String(32), default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class MomentFeedback(Base):
+    """Every review action (S7) — training data for the future ranker."""
+
+    __tablename__ = "moment_feedback"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    moment_id: Mapped[int] = mapped_column(
+        ForeignKey("moments.id"), index=True
+    )
+    decision: Mapped[str] = mapped_column(String(32), index=True)
+    reason: Mapped[str] = mapped_column(Text, default="")
+    original_start: Mapped[float] = mapped_column(Float, default=0.0)
+    original_end: Mapped[float] = mapped_column(Float, default=0.0)
+    adjusted_start: Mapped[float] = mapped_column(Float, default=0.0)
+    adjusted_end: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

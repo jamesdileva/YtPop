@@ -219,3 +219,33 @@
 
 ### Commit
 - `d446d7d S6: feat(clipping): windows + keyword/semantic scoring` (12 files).
+
+## S7 — 2026-10-06 — Clip Review UI (done)
+
+### Planned
+- `moment_feedback` table + moment review fields, PATCH decisions, FFmpeg preview slices, CORS, list filters.
+- Review UI: queue + filters, score bars, trim inputs, approve/reject, video preview, keyboard shortcuts.
+- 20-clip review proof with feedback verification.
+
+### Did
+- [x] `Moment` += notes/category/is_best; new `MomentFeedback` (decision/reason/orig+adjusted/at); migration `bad99375cae3` (server_defaults for non-empty tables)
+- [x] `app/domain/clipping/review.py` — `review_moment` (validates trim/status, always writes feedback), `build_preview` (ultrafast slice, cached, `preview` asset)
+- [x] `PATCH /moments/{id}`, `POST /moments/{id}/preview` (rebuild), `GET /moments/{id}/preview` (FileResponse, builds if missing), list filters (status/type/min_score)
+- [x] CORS for localhost/127.0.0.1 (fetch + future video) + preflight test
+- [x] Frontend `useMoments` + `Review` (queue, filters, bars Score/Hook/Emotion/Novelty/Context, trim, reason, video `preload=none`); shortcuts A/R/J/K/Z/X/C/V; App renders Review
+- [x] `tests/clipping/test_review_api.py` — 7 tests; `Review.test.tsx` — 5 tests (incl. keydown a/j)
+
+### Verified
+- `pytest tests/ -q` → `57 passed`; `vitest` → `10 passed`; `tsc` clean.
+- Migration down/up cycle green, head `bad99375cae3`.
+- Live (:8007, 20 seeded moments + lavfi media): queue 20 → 8 approve + 7 reject + 5 trim in 0.2s; filters return 8/7; preview serves 297KB mp4; **20 feedback rows** with decisions/reasons/adjusted times. Seeds/files/rows cleaned.
+- Speed note: API-side review is instant; human speed comes from keyboard flow (A/R/J/K, no mouse per decision) + `preload=none` video. The <10min/20-clips bar is a UI-ergonomics claim covered by shortcut tests, not timed with a human.
+
+### Next
+- S8 Episode Builder per roadmap §26 (manual timeline: order/trim/intro-outro, persist order server-side).
+
+### Blockers
+- None.
+
+### Commit
+- Pending: `S7: feat(review): queue UI + patch/preview/feedback` (+ hash).

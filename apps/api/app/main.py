@@ -1,5 +1,6 @@
 import structlog
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.analysis import router as analysis_router
 from app.api.routes.health import router as health_router
@@ -14,6 +15,13 @@ log = structlog.get_logger()
 
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name, version=settings.version)
+    # Local-first: Electron + Vite dev talk to the API cross-origin.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.include_router(health_router, prefix="/api/v1")
     app.include_router(moments_router, prefix="/api/v1")
     app.include_router(analysis_router, prefix="/api/v1")
