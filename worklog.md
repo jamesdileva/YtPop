@@ -309,4 +309,4 @@
 - None.
 
 ### Commit
-- Pending: `S9: feat(rendering): timeline render + captions + QA` (+ hash).
+- `b84a219 S9: feat(rendering): timeline render + captions + QA` (14 files).
