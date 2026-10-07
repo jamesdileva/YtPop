@@ -135,6 +135,10 @@ class RightsRecord(Base):
     verified_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    reviewer: Mapped[str] = mapped_column(String(128), default="")
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class Episode(Base):

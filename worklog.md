@@ -371,3 +371,33 @@
 
 ### Commit
 - `0c27802 S11: feat(trends): embedding clustering + velocity scoring` (10 files).
+
+## S12 — 2026-10-07 — Rights Workflow (done)
+
+### Planned
+- Server-side state machine, reviewer-required approvals, expiry, evidence fields, publish blocker (source + episode), demo-mode default-deny, rights badge UI.
+
+### Did
+- [x] Migration `5c6fefe72545`: rights_records += reviewer, expires_at
+- [x] `config.py` += `demo_mode=True` (YTPOP_DEMO_MODE); publishing blocked unless flipped by a human operator
+- [x] `app/domain/rights/service.py` — transitions (UNKNOWN→REVIEW_REQUIRED/REJECTED→APPROVED/NEEDS_PERMISSION→PERMISSION_GRANTED; APPROVED↔REVIEW_REQUIRED/REJECTED; S4 bases as approved leaves), reviewer-required approvals, expiry, per-source + per-episode verdicts
+- [x] Routes: GET/PATCH/review/publish-check + episode publish-check (404/400 paths)
+- [x] Frontend: rights badge + "Rights basis: human review required." banner + Request-review button (stateful mock test)
+- [x] `tests/rights/` — 9 tests (lifecycle, illegal jump, permission flow, revoke/reopen, expiry, demo-deny, S4-basis compat, episode block)
+
+### Verified
+- `pytest tests/ -q` → `105 passed`; `vitest` → `18 passed`; `tsc` clean; migration down/up green, head `5c6fefe72545`.
+- Grep: no "fair use confirmed"/cleared-for-publish strings anywhere in app code.
+- Live two-mode proof (:8012 default demo, :8013 demo-off):
+  - Default UNKNOWN → blocked (demo + no-record reasons); review 200; UNKNOWN→APPROVED direct → 400 with allowed list.
+  - Demo-off: approve (reviewer ed) → publishable True, zero reasons; episode with 1/2 cleared → blocked [id2]. Seeds/rows cleaned.
+- Negative exit holds: no path represents uncleared material as cleared (UNKNOWN/no-record/expired/wrong-status/demo all block with explicit reasons).
+
+### Next
+- S13 Automation per roadmap §26 (PipelineOrchestrator, SQLite job queue + scheduler, one-button episode, Demo 3).
+
+### Blockers
+- None. Note: live-script console needed ASCII-safe printing (cp1252 vs →); app messages unaffected.
+
+### Commit
+- Pending: `S12: feat(rights): state machine + publish blocker` (+ hash).

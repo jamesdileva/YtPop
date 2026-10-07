@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     clip_embeddings: bool = True
     ollama_host: str = "http://127.0.0.1:11434"
     ollama_editor_model: str = "qwen3.5:9b"
+    # Research/demo-only default: publishing stays blocked until a human
+    # operator flips YTPOP_DEMO_MODE=false after review (S12).
+    demo_mode: bool = True
 
     model_config = {"env_prefix": "YTPOP_"}
 

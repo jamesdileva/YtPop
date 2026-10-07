@@ -3,6 +3,9 @@ import { useTopics, useTrends, type TrendBrief } from "./hooks/useTrends";
 import Review from "./components/Review";
 import Episodes from "./components/Episodes";
 import {
+  isRightsApproved,
+  requestReview,
+  useRights,
   useSources,
   useTranscript,
   type SourceBrief,
@@ -21,11 +24,34 @@ function TrendList({ items, testId }: { items: TrendBrief[]; testId: string }) {
   );
 }
 
+function RightsBadge({ sourceId }: { sourceId: number }) {
+  const rights = useRights(sourceId);
+  if (rights.loading || !rights.data) return null;
+  const approved = isRightsApproved(rights.data.status);
+  return (
+    <span data-testid={`rights-${sourceId}`}>
+      Rights: {rights.data.status}
+      {!approved && " — Rights basis: human review required."}
+      {!approved && (
+        <button
+          data-testid={`request-review-${sourceId}`}
+          onClick={() => {
+            void requestReview(sourceId).then(() => rights.refresh());
+          }}
+        >
+          Request review
+        </button>
+      )}
+    </span>
+  );
+}
+
 function SourceRow({ source }: { source: SourceBrief }) {
   const transcript = useTranscript(source.id);
   return (
     <li>
-      {source.title || source.external_id} ({source.status})
+      {source.title || source.external_id} ({source.status}){" "}
+      <RightsBadge sourceId={source.id} />
       <div data-testid={`transcript-${source.id}`}>
         {transcript.loading ? (
           <p>Loading transcript…</p>

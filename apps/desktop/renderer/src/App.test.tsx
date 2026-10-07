@@ -1,5 +1,11 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import {
+  render,
+  screen,
+  waitFor,
+  cleanup,
+  fireEvent,
+} from "@testing-library/react";
 import App from "./App";
 import { getHealthUrl } from "./hooks/useHealth";
 import { getTrendsUrl } from "./hooks/useTrends";
@@ -45,9 +51,10 @@ describe("getTrendsUrl", () => {
 describe("App health badge + trends sections", () => {
   afterEach(() => cleanup());
   beforeEach(() => {
+    let reviewed = false;
     vi.stubGlobal(
       "fetch",
-      vi.fn((url: string) => {
+      vi.fn((url: string, opts?: { method?: string }) => {
         const u = String(url);
         if (u.includes("/api/v1/trends")) {
           return Promise.resolve({ json: () => Promise.resolve(TRENDS_FIXTURE) });
@@ -77,6 +84,24 @@ describe("App health badge + trends sections", () => {
         }
         if (u.includes("/api/v1/sources")) {
           return Promise.resolve({ json: () => Promise.resolve(SOURCES_FIXTURE) });
+        }
+        if (u.includes("/review")) {
+          reviewed = true;
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ source_id: 7, status: "REVIEW_REQUIRED" }),
+          });
+        }
+        if (u.includes("/api/v1/rights")) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                source_id: 7,
+                status: reviewed ? "REVIEW_REQUIRED" : "UNKNOWN",
+                basis: "",
+              }),
+          });
         }
         return Promise.resolve({ json: () => Promise.resolve({ status: "ok", version: "0.1.0" }) });
       }),
@@ -110,5 +135,19 @@ describe("App health badge + trends sections", () => {
     );
     expect(screen.getByTestId("trends-topics").textContent).toContain("12 videos");
     expect(screen.getByTestId("trends-topics").textContent).toContain("4.2M views");
+  });
+
+  it("shows rights badge with review banner and request flow", async () => {
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId("rights-7").textContent).toContain("Rights: UNKNOWN"),
+    );
+    expect(screen.getByTestId("rights-7").textContent).toContain(
+      "Rights basis: human review required.",
+    );
+    fireEvent.click(screen.getByTestId("request-review-7"));
+    await waitFor(() =>
+      expect(screen.getByTestId("rights-7").textContent).toContain("REVIEW_REQUIRED"),
+    );
   });
 });
