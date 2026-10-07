@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { useEpisodes, type Episode } from "../hooks/useEpisodes";
+import {
+  renderFileUrl,
+  useEpisodes,
+  type Episode,
+  type RenderResult,
+} from "../hooks/useEpisodes";
 import { useMoments } from "../hooks/useMoments";
 
 function fmt(s: number): string {
@@ -8,16 +13,79 @@ function fmt(s: number): string {
   return `${m}:${String(sec).padStart(2, "0")}`;
 }
 
+function RenderPanel({
+  ep,
+  render,
+}: {
+  ep: Episode;
+  render: (episodeId: number, preset: string) => Promise<RenderResult>;
+}) {
+  const [preset, setPreset] = useState("preview_720p");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<RenderResult | null>(null);
+  const [error, setError] = useState("");
+
+  return (
+    <div data-testid={`render-panel-${ep.id}`}>
+      <select
+        data-testid={`render-preset-${ep.id}`}
+        value={preset}
+        onChange={(e) => setPreset(e.target.value)}
+      >
+        {["preview_720p", "youtube_1080p", "vertical_1080x1920"].map((p) => (
+          <option key={p} value={p}>
+            {p}
+          </option>
+        ))}
+      </select>
+      <button
+        data-testid={`render-btn-${ep.id}`}
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          setError("");
+          render(ep.id, preset)
+            .then(setResult)
+            .catch((e: unknown) =>
+              setError(e instanceof Error ? e.message : "render failed"),
+            )
+            .finally(() => setBusy(false));
+        }}
+      >
+        {busy ? "Rendering…" : "Render"}
+      </button>
+      {error && <p data-testid={`render-error-${ep.id}`}>{error}</p>}
+      {result && (
+        <div data-testid={`render-result-${ep.id}`}>
+          <video
+            data-testid={`render-video-${ep.id}`}
+            src={renderFileUrl(result.render_id)}
+            controls
+            preload="none"
+            width={480}
+          />
+          <p data-testid={`render-qa-${ep.id}`}>
+            QA {result.qa.ok ? "pass" : "FAIL"} — {result.qa.duration}s,{" "}
+            {result.qa.resolution}, {result.qa.fps}fps
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Timeline({
   ep,
   move,
   remove,
   addClip,
+  render,
 }: {
   ep: Episode;
   move: (ep: Episode, index: number, delta: number) => Promise<Episode>;
   remove: (episodeId: number, segmentId: number) => Promise<Episode>;
   addClip: (episodeId: number, momentId: number) => Promise<Episode>;
+  render: (episodeId: number, preset: string) => Promise<RenderResult>;
 }) {
   const approved = useMoments("APPROVED");
   const [momentId, setMomentId] = useState("");
@@ -68,12 +136,14 @@ function Timeline({
           </span>
         )}
       </div>
+      <RenderPanel ep={ep} render={render} />
     </div>
   );
 }
 
 export default function Episodes() {
-  const { data, loading, refresh, create, move, remove, addClip } = useEpisodes();
+  const { data, loading, refresh, create, move, remove, addClip, render } =
+    useEpisodes();
   const [title, setTitle] = useState("");
   const [openId, setOpenId] = useState<number | null>(null);
 
@@ -110,7 +180,14 @@ export default function Episodes() {
                 {ep.title} ({ep.segments.length} segs)
               </button>
               {openId === ep.id && (
-                <Timeline key={ep.id} ep={ep} move={move} remove={remove} addClip={addClip} />
+                <Timeline
+                  key={ep.id}
+                  ep={ep}
+                  move={move}
+                  remove={remove}
+                  addClip={addClip}
+                  render={render}
+                />
               )}
             </li>
           ))}

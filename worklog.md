@@ -276,3 +276,37 @@
 
 ### Commit
 - `ce2194c S8: feat(episodes): manual timeline builder` (10 files).
+
+## S9 — 2026-10-07 — Rendering + Captions (done, M4 complete)
+
+### Planned
+- Filter-graph render (normalize+concat+loudnorm), 3 presets, ASS sidecar + burn-in, render QA, file serving, in-app playback.
+
+### Did
+- [x] `configs/render.yaml` — preview_720p/youtube_1080p/vertical_1080x1920
+- [x] `app/domain/rendering/service.py` — `render_episode` (cards via color+aevalsrc, clips re-encoded to preset, concat, loudnorm, ASS burn), `build_ass`/`words_to_events` (card titles stand alone), `qa_render` (9 checks), FAILED rows + RENDER jobs recorded
+- [x] Routes: `POST /episodes/{id}/render`, `GET /renders/{id}` (live QA), `GET .../file`, `GET /episodes/{id}/renders`, `POST .../cancel` (409 terminal)
+- [x] `ffmpeg_service.run_cmd` += `cwd` param
+- [x] Frontend: preset select + Render button + player + QA line + error surface (2 new tests)
+- [x] `tests/rendering/` — 9 tests incl. full QA asserts, failure-recorded-then-retry, 404/400 paths
+
+### Verified
+- `pytest tests/ -q` → `72 passed`; `vitest` → `15 passed`; `tsc` clean. No migration (tables from S2).
+- Live (:8009, 3×6s clips + intro/outro cards): render 200 in 2.3s, QA 9/9 green (22.0s, 1280x720, 30fps, captions, clean decode), 7.2MB mp4 served. Seeds/files/rows cleaned.
+- M4 done: timeline → render → in-app playback path proven (player wired to `/renders/{id}/file`).
+- Build quirks found by testing (all fixed + logged):
+  1. drawtext `fontfile=C\:/...` fails to parse on this build → cards carry titles as caption events instead (no drawtext).
+  2. subtitles filter rejects ANY absolute Windows path (quoted/escaped/relative-drive all fail; relative works) → render runs with `cwd=data/` + relative ASS path.
+  3. concat needs interleaved `[v][a]` pairs, not all-v then all-a.
+  4. Card audio input is a 2nd input (`[n+1:a]`), not `[n:a]`.
+  5. `load_presets` used `parents[4]` from the deeper module → shared `repo_root()` (same S4 bug class).
+  6. Failures must route through `fail()` or no FAILED row exists (retry test caught it).
+
+### Next
+- S10 Editorial AI per roadmap §26 (Ollama structured planning, Pydantic validation, ModelRouter).
+
+### Blockers
+- None.
+
+### Commit
+- Pending: `S9: feat(rendering): timeline render + captions + QA` (+ hash).

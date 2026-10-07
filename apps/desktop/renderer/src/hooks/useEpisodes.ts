@@ -12,6 +12,26 @@ export type Segment = {
   kind: "clip" | "card";
 };
 
+export type RenderQA = {
+  ok: boolean;
+  failed: string[];
+  checks: Record<string, boolean>;
+  duration: number;
+  resolution: string;
+  fps: number;
+};
+
+export type RenderResult = {
+  render_id: number;
+  path: string;
+  preset: string;
+  qa: RenderQA;
+};
+
+export function renderFileUrl(renderId: number, base?: string): string {
+  return apiUrl(`/api/v1/renders/${renderId}/file`, base);
+}
+
 export type Episode = {
   id: number;
   title: string;
@@ -97,5 +117,14 @@ export function useEpisodes(base?: string) {
     [mutate],
   );
 
-  return { data, loading, refresh, create, addClip, move, remove };
+  const render = useCallback(
+    (episodeId: number, preset: string) =>
+      req<RenderResult>(`/api/v1/episodes/${episodeId}/render`, {
+        method: "POST",
+        body: JSON.stringify({ preset }),
+      }, base),
+    [base],
+  );
+
+  return { data, loading, refresh, create, addClip, move, remove, render };
 }

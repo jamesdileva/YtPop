@@ -51,7 +51,8 @@ def _binary(name: str) -> str:
     return found
 
 
-def run_cmd(binary: str, args: list[str], timeout: int = 300) -> str:
+def run_cmd(binary: str, args: list[str], timeout: int = 300,
+            cwd: str | Path | None = None) -> str:
     """Run `[binary, *args]` with shell=False. Returns stdout tail context."""
     exe = _binary(binary)
     log.info("ffmpeg_run", exe=exe, args=args)
@@ -59,6 +60,7 @@ def run_cmd(binary: str, args: list[str], timeout: int = 300) -> str:
         proc = subprocess.run(
             [exe, *args], capture_output=True, text=True,
             shell=False, timeout=timeout,
+            cwd=str(cwd) if cwd is not None else None,
         )
     except subprocess.TimeoutExpired as e:
         raise FFmpegError(f"{binary} timed out: {args[:3]}") from e

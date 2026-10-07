@@ -6,6 +6,7 @@ from app.api.routes.analysis import router as analysis_router
 from app.api.routes.episodes import router as episodes_router
 from app.api.routes.health import router as health_router
 from app.api.routes.moments import router as moments_router
+from app.api.routes.renders import router as renders_router
 from app.api.routes.transcription import router as transcription_router
 from app.api.routes.sources import router as sources_router
 from app.api.routes.trends import router as trends_router
@@ -25,6 +26,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(health_router, prefix="/api/v1")
     app.include_router(moments_router, prefix="/api/v1")
+    app.include_router(renders_router, prefix="/api/v1")
     app.include_router(analysis_router, prefix="/api/v1")
     app.include_router(episodes_router, prefix="/api/v1")
     app.include_router(transcription_router, prefix="/api/v1")

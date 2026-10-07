@@ -30,6 +30,21 @@ function mockApi(calls: string[] = []) {
       if (u.includes("/api/v1/moments")) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       }
+      if (u.includes("/render")) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              render_id: 3,
+              path: "/data/renders/3.mp4",
+              preset: "preview_720p",
+              qa: {
+                ok: true, failed: [], duration: 17,
+                resolution: "1280x720", fps: 30,
+              },
+            }),
+        });
+      }
       if (u.includes("/api/v1/episodes") && (opts?.method === "POST" || opts?.method === "PATCH" || opts?.method === "DELETE")) {
         // echo the stored episode (simulate server echo with reorder applied for rebuild)
         const ep = { ...EPISODES[0] };
@@ -82,6 +97,44 @@ describe("Episodes timeline", () => {
     fireEvent.click(screen.getByTestId("del-11"));
     await waitFor(() =>
       expect(calls.some((c) => c.startsWith("DELETE") && c.includes("/segments/11"))).toBe(true),
+    );
+  });
+
+  it("render shows player with QA summary", async () => {
+    render(<Episodes />);
+    await waitFor(() => expect(screen.getByTestId("episode-1")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("episode-1"));
+    await waitFor(() => expect(screen.getByTestId("render-btn-1")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("render-btn-1"));
+    await waitFor(() =>
+      expect(screen.getByTestId("render-video-1")).toBeInTheDocument(),
+    );
+    const src = (screen.getByTestId("render-video-1") as HTMLVideoElement).src;
+    expect(src).toContain("/api/v1/renders/3/file");
+    expect(screen.getByTestId("render-qa-1").textContent).toContain("QA pass");
+    expect(screen.getByTestId("render-qa-1").textContent).toContain("1280x720");
+  });
+
+  it("failed render surfaces the error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        if (String(url).includes("/render")) {
+          return Promise.resolve({ ok: false, status: 400 });
+        }
+        if (String(url).includes("/moments")) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(EPISODES) });
+      }),
+    );
+    render(<Episodes />);
+    await waitFor(() => expect(screen.getByTestId("episode-1")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("episode-1"));
+    await waitFor(() => expect(screen.getByTestId("render-btn-1")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("render-btn-1"));
+    await waitFor(() =>
+      expect(screen.getByTestId("render-error-1")).toBeInTheDocument(),
     );
   });
 });

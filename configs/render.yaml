@@ -1,0 +1,35 @@
+# S9 render presets — resolution/fps/codec per output. Tunable without code.
+presets:
+  preview_720p:
+    width: 1280
+    height: 720
+    fps: 30
+    vcodec: "libx264"
+    x264_preset: "ultrafast"
+    crf: 23
+    acodec: "aac"
+    audio_bitrate: "128k"
+    caption_style: "standard"
+    burn_captions: true
+  youtube_1080p:
+    width: 1920
+    height: 1080
+    fps: 30
+    vcodec: "libx264"
+    x264_preset: "veryfast"
+    crf: 20
+    acodec: "aac"
+    audio_bitrate: "192k"
+    caption_style: "standard"
+    burn_captions: true
+  vertical_1080x1920:
+    width: 1080
+    height: 1920
+    fps: 30
+    vcodec: "libx264"
+    x264_preset: "ultrafast"
+    crf: 23
+    acodec: "aac"
+    audio_bitrate: "128k"
+    caption_style: "bold"
+    burn_captions: true
