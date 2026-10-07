@@ -1,5 +1,5 @@
 import { useHealth } from "./hooks/useHealth";
-import { useTrends, type TrendBrief } from "./hooks/useTrends";
+import { useTopics, useTrends, type TrendBrief } from "./hooks/useTrends";
 import Review from "./components/Review";
 import Episodes from "./components/Episodes";
 import {
@@ -46,6 +46,7 @@ export default function App() {
   const health = useHealth();
   const trends = useTrends();
   const sources = useSources();
+  const topics = useTopics();
   return (
     <main style={{ fontFamily: "system-ui", padding: 24 }}>
       <h1>YtPop — Dashboard (S5)</h1>
@@ -77,6 +78,26 @@ export default function App() {
               {(trends.data?.top_categories ?? []).map((c) => (
                 <li key={c.category}>
                   {c.category} ({c.count})
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+      <section>
+        <h2>Topics</h2>
+        <div data-testid="trends-topics">
+          {topics.loading ? (
+            <p>Loading topics…</p>
+          ) : topics.data.length === 0 ? (
+            <p>No topics yet — run trend clustering.</p>
+          ) : (
+            <ul>
+              {topics.data.map((t) => (
+                <li key={t.id}>
+                  🔥 {t.topic} · {t.sources} videos · +{t.velocity.toLocaleString()}/h ·{" "}
+                  {(t.combined_views / 1e6).toFixed(1)}M views · score{" "}
+                  {t.score.toFixed(1)}
                 </li>
               ))}
             </ul>

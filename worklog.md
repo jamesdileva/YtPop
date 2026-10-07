@@ -341,3 +341,33 @@
 
 ### Commit
 - `e2edfa4 S10: feat(editorial): ollama planning + generate` (16 files).
+
+## S11 — 2026-10-07 — Trend Intelligence (done, M2+M6 complete)
+
+### Planned
+- Embeddings → single-link clusters → trend_events with 6-component velocity score; LLM topic summaries with offline fallback.
+- `POST /trends/cluster`, `GET /trend-events`, Dashboard topic cards; weights in yaml.
+
+### Did
+- [x] `configs/default.yaml` += trends (threshold 0.55, min_sources 2, weights .25/.15/.15/.20/.15/.10, caps, half-life)
+- [x] `app/domain/discovery/clustering.py` — cosine single-link clustering, score_cluster (views/eng velocity from snapshots, recency decay, cross-source, 3-snapshot momentum else neutral 50, novelty vs ACTIVE trends), overlap-50% trend update (no dupes), CLUSTER_TRENDS job row
+- [x] Routes: cluster (summarize flag → Ollama summarizer, default keyword fallback), trend-events list with member counts + combined views
+- [x] Frontend `useTopics` + topic cards (`🔥 topic · N videos · +V/h · M views · score`)
+- [x] `tests/trends/` — 9 tests (A–E grouping, rerun-update, determinism, weights validation, singletons, real-embedding API grouping, empty DB)
+
+### Verified
+- `pytest tests/ -q` → `96 passed`; `vitest` → `17 passed`; `tsc` clean. No migration (tables from S2).
+- Live (:8011, 20 seeded sources, real MiniLM + qwen3:4b summaries): 2 topics in 24s — 'Game Update Unveiled' (11 vids, +1.3M/h, 26M, 92.5) + 'Sourdough Mastery' (7 vids, +70.5k/h, 1.4M, 92.5). Seeds/rows cleaned.
+- Honest observations (tuning debt, not blocking):
+  1. Both topics scored exactly 92.5 — caps saturate (any velocity > cap = 100), hiding magnitude differences. Future: log-scale or higher caps.
+  2. 18/20 sources assigned; 2 singletons fell below the 0.55 threshold and were ignored by design (threshold tunable).
+- M2+M6 done: multi-video trends identified from DB, visible on Dashboard.
+
+### Next
+- S12 Rights Workflow per roadmap §26 (state machine server-side, publish blocker, evidence, research/demo-only mode).
+
+### Blockers
+- None.
+
+### Commit
+- Pending: `S11: feat(trends): embedding clustering + velocity scoring` (+ hash).

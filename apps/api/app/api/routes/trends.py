@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db import models
 from app.db.database import get_db
+from app.domain.discovery import clustering
 from app.domain.discovery import service as discovery
 from app.services.youtube_service import (
     COST_MOST_POPULAR,
@@ -128,3 +129,56 @@ def get_trend(trend_id: int, db: Session = Depends(get_db)) -> dict:
         "score": row.score, "velocity": row.velocity, "region": row.region,
         "category": row.category, "status": row.status,
     }
+
+
+def get_cluster_llm():
+    """Summarizer LLM override point (default None → keyword fallback)."""
+    return None
+
+
+class ClusterRequest(BaseModel):
+    region: str = Field(default="US", max_length=8)
+    category: str = Field(default="", max_length=64)
+    threshold: float = Field(default=0.55, ge=0.0, le=1.0)
+    summarize: bool = False
+
+
+@router.post("/trends/cluster")
+def cluster_trends_endpoint(
+    payload: ClusterRequest, db: Session = Depends(get_db),
+    llm=Depends(get_cluster_llm),
+) -> dict:
+    if payload.summarize and llm is None:
+        from app.services.ollama_service import OllamaService, model_for
+
+        llm = OllamaService(model=model_for("summarizer"),
+                            host=settings.ollama_host)
+    try:
+        return clustering.cluster_trends(
+            db, region=payload.region, category=payload.category,
+            threshold=payload.threshold, llm=llm,
+        )
+    except clustering.TrendError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.get("/trend-events")
+def list_trend_events(db: Session = Depends(get_db)) -> list[dict]:
+    rows = (db.query(models.TrendEvent)
+            .order_by(models.TrendEvent.score.desc()).all())
+    out = []
+    for row in rows:
+        members = (db.query(models.TrendSource)
+                   .filter_by(trend_id=row.id).all())
+        out.append({
+            "id": row.id, "topic": row.topic,
+            "description": row.description, "score": row.score,
+            "velocity": row.velocity, "region": row.region,
+            "category": row.category, "status": row.status,
+            "sources": len(members),
+            "combined_views": sum(
+                (db.get(models.Source, m.source_id).view_count
+                 if db.get(models.Source, m.source_id) else 0)
+                for m in members),
+        })
+    return out

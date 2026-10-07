@@ -60,3 +60,43 @@ export function useTrends(base?: string): {
 
   return { data, loading, error };
 }
+
+export type TopicCard = {
+  id: number;
+  topic: string;
+  description: string;
+  score: number;
+  velocity: number;
+  category: string;
+  sources: number;
+  combined_views: number;
+};
+
+export function useTopics(base?: string): {
+  data: TopicCard[];
+  loading: boolean;
+} {
+  const [data, setData] = useState<TopicCard[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    const root = getTrendsUrl(base).replace(/\/trends$/, "");
+    fetch(`${root}/trend-events`)
+      .then((r) => r.json())
+      .then((body: TopicCard[]) => {
+        if (alive) {
+          setData(body);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [base]);
+
+  return { data, loading };
+}

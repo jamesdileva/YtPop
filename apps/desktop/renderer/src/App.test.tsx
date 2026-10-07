@@ -52,6 +52,18 @@ describe("App health badge + trends sections", () => {
         if (u.includes("/api/v1/trends")) {
           return Promise.resolve({ json: () => Promise.resolve(TRENDS_FIXTURE) });
         }
+        if (u.includes("/trend-events")) {
+          return Promise.resolve({
+            json: () =>
+              Promise.resolve([
+                {
+                  id: 1, topic: "Game Update", description: "d",
+                  score: 91.2, velocity: 184000, category: "gaming",
+                  sources: 12, combined_views: 4200000,
+                },
+              ]),
+          });
+        }
         if (u.includes("/moments")) {
           return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
         }
@@ -89,5 +101,14 @@ describe("App health badge + trends sections", () => {
     await waitFor(() => expect(screen.getByTestId("sources-list").textContent).toContain("Vid 1"));
     await waitFor(() => expect(screen.getByTestId("transcript-7").textContent).toContain("Hello world."));
     expect(screen.getByTestId("transcript-7").textContent).toContain("1 segments");
+  });
+
+  it("renders topic cards from trend clustering", async () => {
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId("trends-topics").textContent).toContain("Game Update"),
+    );
+    expect(screen.getByTestId("trends-topics").textContent).toContain("12 videos");
+    expect(screen.getByTestId("trends-topics").textContent).toContain("4.2M views");
   });
 });

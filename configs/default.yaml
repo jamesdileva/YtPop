@@ -27,3 +27,19 @@ ollama:
   timeout_seconds: 300
   num_predict: 2000
   temperature: 0.0
+trends:
+  similarity_threshold: 0.55
+  min_sources: 2
+  # component weights (must sum to 1.0)
+  weights:
+    views_velocity: 0.25
+    engagement_velocity: 0.15
+    recency: 0.15
+    cross_source: 0.20
+    momentum: 0.15
+    novelty: 0.10
+  # normalization caps (component hits 100 at cap)
+  views_velocity_cap: 10000.0
+  engagement_velocity_cap: 1000.0
+  cross_source_cap: 5
+  recency_half_life_hours: 24.0
