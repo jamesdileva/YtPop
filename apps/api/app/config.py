@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     # Research/demo-only default: publishing stays blocked until a human
     # operator flips YTPOP_DEMO_MODE=false after review (S12).
     demo_mode: bool = True
+    # S13 background scheduler (interval loop). Default off so tests and
+    # one-shot runs stay deterministic; enable with YTPOP_SCHEDULER=true.
+    scheduler: bool = False
 
     model_config = {"env_prefix": "YTPOP_"}
 

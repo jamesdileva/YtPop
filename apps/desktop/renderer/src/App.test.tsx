@@ -85,6 +85,12 @@ describe("App health badge + trends sections", () => {
         if (u.includes("/api/v1/sources")) {
           return Promise.resolve({ json: () => Promise.resolve(SOURCES_FIXTURE) });
         }
+        if (u.includes("/api/v1/jobs")) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ jobs: [], queue_depth: {} }),
+          });
+        }
         if (u.includes("/review")) {
           reviewed = true;
           return Promise.resolve({

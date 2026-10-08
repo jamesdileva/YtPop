@@ -401,3 +401,33 @@
 
 ### Commit
 - `5e034a6 S12: feat(rights): state machine + publish blocker` (13 files).
+
+## S13 — 2026-10-07 — Automation (done, M7+M8 complete)
+
+### Planned
+- SQLite job queue (claim/run/retry/cancel/backoff/dedupe/priority bands), 8 stage handlers, daily-episode orchestrator, interval scheduler + background loop, jobs/pipeline routes, ops UI.
+
+### Did
+- [x] Migration `e56ee47295f0`: jobs.next_run_at (backoff)
+- [x] `app/workers/queue.py` — enqueue (dedupe), atomic claim_next, complete/fail (exp backoff), retry, cancel, priority_for_velocity (100/70/30/5)
+- [x] `app/workers/handlers.py` — REFRESH_SCORES/CLUSTER/DISCOVER/TRANSCRIBE/FIND_MOMENTS/DRAIN_ANALYSIS/GENERATE/RENDER + sync run_job; injectable Ctx (offline tests)
+- [x] `app/workers/orchestrator.py` — scores→cluster→analysis→rights-filter→generate→render→QA→review, every stage a job, abort names the stage
+- [x] `app/workers/scheduler.py` — 15/30/60m tick, self-healing (FAILED doesn't block), daemon loop behind YTPOP_SCHEDULER (lifespan)
+- [x] Routes: jobs CRUD/run/retry/cancel, pipeline/daily-episode (model override), scheduler tick/status; `config.py` += scheduler flag; `default.yaml` += scheduler; `.env.example` documents DEMO_MODE/SCHEDULER
+- [x] Frontend Ops: queue depth/failures, Generate-today's-episode button + stages, jobs list (2 tests)
+- [x] `tests/test_jobs.py` (11) + `tests/test_pipeline.py` (3, incl. full fake-LLM + real-ffmpeg run)
+
+### Verified
+- `pytest tests/ -q` → `119 passed`; `vitest` → `20 passed`; `tsc` clean; migration cycle green.
+- Demo 3 (:8014, all-real except pre-seeded approvals): 200 in 90s — refresh→cluster→TRANSCRIBE (real whisper on SAPI)→FIND_MOMENTS (real embeddings)→GENERATE (real qwen3:4b)→RENDER (real ffmpeg); draft episode + COMPLETED render; publishable False (demo gate holds); tick right after correctly enqueued only DRAIN_ANALYSIS (intervals honored, no dupes). All seeds/artifacts/rows cleaned.
+- Scheduler loop (:8015, YTPOP_SCHEDULER=true): `scheduler_started` + tick enqueued all 3 in logs; its 3 QUEUED rows cleaned after.
+- Known wart (not blocking): service-level TRANSCRIBE/RENDER rows duplicate queue rows (S5/S9 pattern predates the queue) — double counts job types in ops. Follow-up: services skip own row when run under a queue job.
+
+### Next
+- S14 QA / Packaging / Learning prep per roadmap §26 (full gate, Demos 1–3 sign-off, Electron Builder, feedback export, v0.1.0-mvp tag).
+
+### Blockers
+- None.
+
+### Commit
+- Pending: `S13: feat(automation): job queue + orchestrator + scheduler` (+ hash).

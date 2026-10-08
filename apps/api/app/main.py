@@ -1,4 +1,5 @@
 import structlog
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -6,6 +7,7 @@ from app.api.routes.analysis import router as analysis_router
 from app.api.routes.editorial import router as editorial_router
 from app.api.routes.episodes import router as episodes_router
 from app.api.routes.health import router as health_router
+from app.api.routes.jobs import router as jobs_router
 from app.api.routes.moments import router as moments_router
 from app.api.routes.renders import router as renders_router
 from app.api.routes.rights import router as rights_router
@@ -18,7 +20,17 @@ log = structlog.get_logger()
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title=settings.app_name, version=settings.version)
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        # 24/7 loop is opt-in (YTPOP_SCHEDULER=true) so tests stay quiet.
+        if settings.scheduler:
+            from app.workers import scheduler as sched
+
+            sched.start_background_loop()
+        yield
+
+    app = FastAPI(title=settings.app_name, version=settings.version,
+                  lifespan=lifespan)
     # Local-first: Electron + Vite dev talk to the API cross-origin.
     app.add_middleware(
         CORSMiddleware,
@@ -27,6 +39,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(health_router, prefix="/api/v1")
+    app.include_router(jobs_router, prefix="/api/v1")
     app.include_router(moments_router, prefix="/api/v1")
     app.include_router(renders_router, prefix="/api/v1")
     app.include_router(rights_router, prefix="/api/v1")
