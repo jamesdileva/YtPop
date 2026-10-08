@@ -466,3 +466,40 @@
 ### Commit
 - `d5d5b7b S14: chore(qa): feedback export, packaging, runbook` (15 files).
 - Tag: `v0.1.0-mvp` (pushed) — MVP loop S1–S14 complete, Demos 1–3 signed off.
+
+## D1 - 2026-10-08 - non-overlapping clip windows (done, post-MVP debt)
+
+### Planned
+- Stop near-duplicate time windows crowding top-k (S6 debt): greedy score-ordered
+  selection with overlap suppression, driven by config.
+
+### Did
+- [x] `app/domain/clipping/service.py` - split `select_top` into `_mmr_order` +
+  `_overlap_ratio` + `_suppress_overlaps`; `select_top` now applies suppression
+- [x] `configs/scoring.yaml` - `windows.non_overlap: true`, `windows.max_overlap: 0.5`
+- [x] Tests: suppression unit (heavy overlap), flag-off equivalence, near-duplicate
+  guarantee under forced short clips, end-to-end distinctness on a 12-segment
+  transcript, all-candidates-still-stored
+- [x] Updated two expectations that assumed top_k is always filled exactly
+
+### Verified
+- `pytest tests/clipping` -> 31 passed; full gate `pytest -q` -> 134 passed;
+  `vitest` -> 20 passed. No migration.
+- Live (52s SAPI clip, 8 utterances, real whisper + MiniLM, 55 candidates):
+  heavy-overlap pairs went 37 -> 5, near-duplicate (>0.9) pairs 0, distinct
+  picks 5 for a requested 10 on a short clip; the 6.3-28/31/33/37 and 0-28/31
+  duplicate families are gone.
+- Policy (tests document it): strict `max_overlap`, then a single relaxation to
+  0.9; never relax to accept-all, so short clips return fewer distinct
+  candidates instead of padding with copies.
+- Note: config keys sit in `windows.non_overlap/max_overlap`, so the flag is
+  runtime-tunable without code changes (agents.md config-over-code rule).
+
+### Next
+- Log-scale trend caps (D2), service vs queue job rows (D3).
+
+### Blockers
+- None.
+
+### Commit
+- `D1: feat(clipping): non-overlapping top-k selection`

@@ -61,7 +61,15 @@ def test_find_moments_and_ranked_reads(setup):
                     json={"top_k": 10})
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["total"] > 0 and len(body["top"]) == min(10, body["total"])
+    assert body["total"] > 0
+    # D1: top stays distinct coverage (never padded with near-copies)
+    assert 1 <= len(body["top"]) <= min(10, body["total"])
+    picked = body["top"]
+    for i, a in enumerate(picked):
+        for b in picked[i + 1:]:
+            ratio = (min(a["end"], b["end"]) - max(a["start"], b["start"]))
+            shorter = min(a["end"] - a["start"], b["end"] - b["start"])
+            assert ratio / shorter <= 0.9
     assert body["top"][0]["start"] == pytest.approx(10.0, abs=2.0)
 
     listed = client.get(f"/api/v1/moments?source_id={src_id}").json()

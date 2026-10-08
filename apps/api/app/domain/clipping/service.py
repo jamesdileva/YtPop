@@ -32,6 +32,8 @@ DEFAULT_SCORING: dict = {
         "max_duration": 90.0,
         "target_candidates_per_video": 10,
         "max_segments_per_window": 8,
+        "non_overlap": True,
+        "max_overlap": 0.5,
     },
     "weights": {
         "hook": 20.0, "relevance": 15.0, "novelty": 10.0,
@@ -206,19 +208,25 @@ def _jaccard(a: str, b: str) -> float:
 
 # --- selection ---------------------------------------------------------------
 
-def select_top(
-    scored: list[dict], vectors: list[list[float]] | None,
-    texts: list[str], top_k: int, weights: dict,
-) -> list[int]:
-    """Greedy MMR order over indices: score minus redundancy to picked."""
+def _overlap_ratio(a: dict, b: dict) -> float:
+    """Intersection as a fraction of the *shorter* window (0..1)."""
+    inter = max(0.0, min(a["end"], b["end"]) - max(a["start"], b["start"]))
+    shorter = min(a["end"] - a["start"], b["end"] - b["start"])
+    return inter / shorter if shorter > 0 else 0.0
+
+
+def _mmr_order(scored: list[dict], vectors: list[list[float]] | None,
+               texts: list[str], weights: dict) -> list[int]:
+    """Greedy MMR ranking over all indices: score − redundancy to picked."""
     remaining = list(range(len(scored)))
     picked: list[int] = []
     adjusted = {i: scored[i]["final_score"] for i in remaining}
-    while remaining and len(picked) < top_k:
+    while remaining:
         if picked:
             for i in remaining:
                 if vectors is not None:
-                    sim = max(_cosine(vectors[i], vectors[p]) for p in picked)
+                    sim = max(_cosine(vectors[i], vectors[p])
+                              for p in picked)
                 else:
                     sim = max(_jaccard(texts[i], texts[p]) for p in picked)
                 adjusted[i] = scored[i]["final_score"] - weights["redundancy"] * sim
@@ -226,6 +234,49 @@ def select_top(
         picked.append(best)
         remaining.remove(best)
     return picked
+
+
+def _suppress_overlaps(order: list[int], scored: list[dict], top_k: int,
+                       max_overlap: float) -> list[int]:
+    """Greedy score-ordered picks that stay under an overlap threshold.
+
+    Strict first (max_overlap). If that starves the list below top_k, relax
+    once to 0.9 (near-duplicate suppression, not timed duplicates such as
+    an intro + payoff). It deliberately never relaxes to "anything goes" —
+    a short clip yields fewer, genuinely distinct candidates instead of a
+    top-k padded with near-copies of the same coverage.
+    """
+    for threshold in (max_overlap, 0.9):
+        kept: list[int] = []
+        for i in order:
+            if len(kept) >= top_k:
+                break
+            if any(_overlap_ratio(scored[i], scored[j]) > threshold
+                   for j in kept):
+                continue
+            kept.append(i)
+        if len(kept) >= min(top_k, len(order)):
+            return kept
+    return kept
+
+
+def select_top(
+    scored: list[dict], vectors: list[list[float]] | None,
+    texts: list[str], top_k: int, weights: dict,
+    windows: dict | None = None,
+) -> list[int]:
+    """MMR order, then optional time-overlap suppression (D1).
+
+    MMR alone can't keep duplicate time windows out of the top-k — its
+    penalty is bounded while the score spread is not — so overlapping
+    candidates are dropped after ranking when windows.non_overlap is on.
+    """
+    order = _mmr_order(scored, vectors, texts, weights)
+    cfg = windows if windows is not None else DEFAULT_SCORING["windows"]
+    if not cfg.get("non_overlap", True):
+        return order[:top_k]
+    max_overlap = float(cfg.get("max_overlap", 0.5))
+    return _suppress_overlaps(order, scored, top_k, max_overlap)
 
 
 # --- V3/V4 finalist judges -----------------------------------------------------
@@ -386,7 +437,8 @@ def find_moments(
     _score_finalists_visual(db, source_id, scored, finalists, cfg, roots)
 
     order = select_top(
-        scored, vectors, texts, min(top_k, len(scored)), cfg["weights"]
+        scored, vectors, texts, min(top_k, len(scored)), cfg["weights"],
+        windows=w,
     )
     top_set = set(order)
 

@@ -9,6 +9,10 @@ windows:
   target_candidates_per_video: 10
   # max consecutive transcript segments merged into one window
   max_segments_per_window: 8
+  # D1: drop near-duplicate time windows from top-k (threshold relaxes
+  # progressively rather than starving the review queue)
+  non_overlap: true
+  max_overlap: 0.5
 
 weights:
   hook: 20.0
