@@ -20,6 +20,8 @@ apps/desktop/**/*.js
 # App data (keep dirs, ignore artifacts)
 data/database/*.db
 data/database/*.sqlite*
+data/models/*
+!data/models/.gitkeep
 data/raw/*
 data/media/*
 data/transcripts/*

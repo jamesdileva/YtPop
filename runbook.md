@@ -85,7 +85,6 @@ Cheap filters first; vision/large models on finalists only.
 | stray `.js` next to `.ts` | `npm run build` emits in place — gitignored, harmless |
 
 ### Shared Ollama
-
 This machine may run Ollama for other projects. When another consumer holds
 the model, requests queue and can exceed short timeouts. The adapter now
 defaults to **900s** with **one retry**, so pipelines wait rather than fail.
@@ -97,3 +96,35 @@ If you still time out, wait for the other project to finish or set
 `transcripts/*.json`, `clips/`, `storyboards/`, `captions/`,
 `renders/`, `database/mega_clipper.db`. Every artifact has a DB row.
 Logs carry `[episode/job/source/stage]` correlation — grep those first.
+
+## 9. Train the clip ranker (D4)
+
+Review decisions in the app produce labelled feature vectors
+(`moments.features_json` + `moment_feedback`). Train locally, no GPU, no
+extra dependencies:
+
+```powershell
+Set-Location apps/api
+python -m app.domain.clipping.training --out data/models/ranker.json
+# refuses to run with <10 labelled rows or only one class
+```
+
+Then enable it in `configs/scoring.yaml`:
+
+```yaml
+learned_ranking:
+  enabled: true
+  path: data/models/ranker.json
+```
+
+Rules the trainer follows (deliberately conservative):
+- labels: APPROVED / PERMISSION_GRANTED / USER_OWNED / LICENSED /
+  CREATIVE_COMMONS / PUBLIC_DOMAIN -> 1; REJECTED -> 0;
+  TRIMMED / NOTED skipped (ambiguous about the window itself).
+- features: the exact vector persisted at candidate creation (keyword feats,
+  duration, wps, semantic/visual/llm scores), standardized with the mean/std
+  stored in the weights file.
+- logistic regression is pure Python, deterministic (no shuffling), L2
+  penalty 0.01, 400 batch-GD iterations.
+- inspect what the model thinks via `GET /api/v1/feedback/export?format=csv`
+  before trusting weights.

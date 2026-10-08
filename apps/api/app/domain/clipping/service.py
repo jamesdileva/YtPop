@@ -447,6 +447,15 @@ def find_moments(
         sorted(scored, key=lambda c: c["final_score"], reverse=True)
     ):
         mtype = "question" if "?" in cand["text"] else "highlight"
+        duration = round(cand["end"] - cand["start"], 3)
+        # D4: persist the exact vector the ranker sees at apply time
+        feats = dict(cand["feats"])
+        feats["duration"] = duration
+        feats["wps"] = round(len(cand["text"].split()) / max(duration, 0.1), 3)
+        feats["semantic_relevance"] = cand.get("semantic_relevance", 0.0)
+        feats["semantic_novelty"] = cand.get("semantic_novelty", 0.0)
+        feats["visual"] = cand.get("visual_score", 0.0)
+        feats["llm"] = cand.get("llm_score", 0.0)
         db.add(models.Moment(
             source_id=source_id, start_time=cand["start"],
             end_time=cand["end"],
@@ -457,6 +466,7 @@ def find_moments(
             visual_score=cand.get("visual_score", 0.0),
             editorial_score=cand["feats"]["hook"],
             final_score=cand["final_score"], status="CANDIDATE",
+            features_json=_json.dumps(feats),
         ))
     db.flush()
     top = [

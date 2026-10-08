@@ -114,6 +114,8 @@ class Moment(Base):
     notes: Mapped[str] = mapped_column(Text, default="")
     category: Mapped[str] = mapped_column(String(64), default="")
     is_best: Mapped[bool] = mapped_column(default=False)
+    # full candidate feature vector (D4 training); "" for pre-D4 rows
+    features_json: Mapped[str] = mapped_column(Text, default="")
 
 
 class RightsRecord(Base):

@@ -90,7 +90,8 @@ llm_scoring:
   enabled: false
   weight: 10.0
 
-# V5 learned ranker (weights file from future training; identity until then)
+# V5 learned ranker (produced by: python -m app.domain.clipping.training
+# --out data/models/ranker.json ; disabled until a good weights file exists)
 learned_ranking:
   enabled: false
-  path: ""
+  path: data/models/ranker.json

@@ -578,3 +578,51 @@
 
 ### Commit
 - `D3: fix(workers): services reuse the queue job row`
+
+## D4 - 2026-10-08 - feedback to learned weights (done, post-MVP debt)
+
+### Planned
+- Close the learning loop: review decisions -> trained ranker weights, with no
+  new dependencies (packaging stays lean) and no silent auto-training.
+
+### Did
+- [x] Migration `83e435e70b31`: `moments.features_json TEXT DEFAULT ''` - the
+  candidate feature vector now survives to the DB (only 5 of 14 features were
+  recoverable before, which would have made training a guess)
+- [x] `find_moments` persists the full vector (keyword feats + duration + wps +
+  semantic/visual/llm scores) at candidate creation
+- [x] `app/domain/clipping/training.py` - dataset builder, pure-Python logistic
+  regression (batch GD, standardized, L2 0.01, 400 iters, deterministic), weight
+  writer, CLI: `python -m app.domain.clipping.training --out <file>`
+- [x] `ranker.apply` honors standardized weights (features/coefficients/bias +
+  mean/std) and stays passthrough otherwise
+- [x] `configs/scoring.yaml` `learned_ranking.path` defaults to
+  data/models/ranker.json (still `enabled: false` - opt-in); `data/models/`
+  gitignored with a .gitkeep
+- [x] runbook section 9 documents the loop, label policy and caveats
+- [x] `tests/clipping/test_training.py` - 7 tests (separable-signal fit,
+  determinism, label mapping incl. TRIMMED/NOTED skipped, thin/single-class
+  refusals, weights round-trip + apply ordering, missing-file safety,
+  find_moments persistence)
+
+### Verified
+- `pytest -q` -> 148 passed; `vitest` -> 20 passed; migration down/up green.
+- Live clean run (SAPI 90s clip, real tiny whisper + MiniLM, 39 candidates):
+  editor policy "tight <=20s" -> 29 approved / 10 rejected -> export 39 rows ->
+  trained (pos 29, neg 10) -> strongest learned feature `duration -4.31` (the
+  policy), then apply: tight clip 41.8 vs long clip 26.1 with equal base scores.
+  Seeds/files/weights cleaned.
+- Two live-only lessons: (1) a crash before cleanup leaves rows behind, so the
+  earlier double-counted export (78 for 39) was stale state, not a code bug -
+  re-ran from a clean DB to confirm 39; (2) my first assertion guessed the wrong
+  dominant feature, so the check now asserts the policy (duration sign + ordering)
+  instead of a specific feature's sign.
+
+### Next
+- Packaging focus: win-unpacked (`--dir`) as the primary artifact, NSIS optional.
+
+### Blockers
+- None.
+
+### Commit
+- `D4: feat(clipping): train ranker from review feedback`
