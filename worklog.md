@@ -464,4 +464,5 @@
 - None.
 
 ### Commit
-- Pending: `S14: chore(qa): feedback export, packaging, runbook, v0.1.0-mvp` (+ hash + tag).
+- `d5d5b7b S14: chore(qa): feedback export, packaging, runbook` (15 files).
+- Tag: `v0.1.0-mvp` (pushed) — MVP loop S1–S14 complete, Demos 1–3 signed off.
