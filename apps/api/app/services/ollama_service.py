@@ -38,18 +38,43 @@ class OllamaError(RuntimeError):
 
 class OllamaService:
     def __init__(self, model: str, host: str = "http://127.0.0.1:11434",
-                 timeout: int = 300, num_predict: int = 2000,
-                 temperature: float = 0.0,
+                 timeout: int | None = None, num_predict: int = 2000,
+                 temperature: float = 0.0, retries: int | None = None,
                  client: httpx.Client | None = None) -> None:
+        from app.config import settings
+
         self.model = model
         self.host = host.rstrip("/")
-        self.timeout = timeout
+        self.timeout = timeout if timeout is not None else \
+            settings.ollama_timeout_seconds
         self.num_predict = num_predict
         self.temperature = temperature
-        self.client = client or httpx.Client(timeout=float(timeout))
+        # One extra attempt absorbs transient queueing timeouts on a
+        # shared Ollama; the repair loop above still owns JSON validity.
+        self.retries = retries if retries is not None else \
+            settings.ollama_retries
+        self.client = client or httpx.Client(timeout=float(self.timeout))
 
     def chat_json(self, system: str, user: str) -> dict:
-        """Single chat turn with format=json. Returns parsed object."""
+        """Chat turn with format=json. Retries once on transport timeout.
+
+        A shared Ollama instance can make a request wait for another
+        consumer's inference to drain; one extra attempt absorbs that.
+        JSON validity stays with the caller's Pydantic repair loop.
+        """
+        last_error: Exception | None = None
+        for attempt in range(max(self.retries, 0) + 1):
+            try:
+                return self._chat_once(system, user)
+            except httpx.TimeoutException as e:
+                last_error = e
+                log.warning("ollama_timeout_retry", attempt=attempt,
+                            model=self.model)
+        raise OllamaError(f"ollama request failed after "
+                         f"{max(self.retries, 0) + 1} attempts: "
+                         f"{last_error}")
+
+    def _chat_once(self, system: str, user: str) -> dict:
         try:
             resp = self.client.post(
                 f"{self.host}/api/chat",
@@ -68,6 +93,9 @@ class OllamaService:
                     },
                 },
             )
+        except httpx.TimeoutException:
+            # re-raise for chat_json's retry (HTTPError won't match first)
+            raise
         except httpx.HTTPError as e:
             raise OllamaError(f"ollama request failed: {e}") from e
         if resp.status_code != 200:

@@ -1,8 +1,9 @@
-"""Clip detection V1/V2 (S6): transcript windows + keyword/semantic scoring.
+"""Clip detection (S6 V1/V2, S14 V3/V4/V5-preview).
 
-V1 (keyword) runs with embed_fn=None. V2 adds embedding similarity for
-semantic relevance + MMR redundancy. Vision/LLM judges arrive in later
-sprints — the selection interface stays the same.
+V1 keyword-only (embed_fn=None). V2 adds embedding similarity + MMR.
+V3 LLM judge, V4 cheap vision and V5 learned ranker sit behind flags in
+configs/scoring.yaml (all default off except the V1/V2 path).
+Vision/LLM only ever see finalist windows, never full videos.
 
 All candidates are stored (never delete low scores); selection only orders.
 """
@@ -41,6 +42,11 @@ DEFAULT_SCORING: dict = {
     },
     "hook_words": [], "emotion_words": [], "payoff_words": [],
     "dangling_starts": [], "min_wps": 1.2,
+    "scoring_version": "v2",
+    "vision": {"enabled": False, "fps": 1, "weight": 10.0,
+               "finalist_multiplier": 3},
+    "llm_scoring": {"enabled": False, "weight": 10.0},
+    "learned_ranking": {"enabled": False, "path": ""},
 }
 
 
@@ -222,12 +228,81 @@ def select_top(
     return picked
 
 
+# --- V3/V4 finalist judges -----------------------------------------------------
+
+def _score_finalists_llm(scored: list[dict], finalists: list[int],
+                         texts: list[str], llm, cfg: dict) -> None:
+    """V3: ask the classifier 'is this actually interesting?' (0..1)."""
+    if not ((cfg.get("llm_scoring") or {}).get("enabled") and llm):
+        return
+    weight = float(cfg["llm_scoring"].get("weight", 10.0))
+    numbered = "\n".join(f"[{i}] {texts[i][:300]}" for i in finalists)
+    try:
+        raw = llm.chat_json(
+            "You rate video moments. Reply with a single JSON object "
+            '{"scores": {"<index>": 0.0-1.0}} using the [index] numbers given.',
+            f"Rate how interesting each moment is:\n{numbered}")
+        scores = raw.get("scores", {}) if isinstance(raw, dict) else {}
+    except Exception as e:
+        log.info("llm_scoring_fallback", error=str(e)[:200])
+        return
+    for i in finalists:
+        try:
+            s = max(0.0, min(1.0, float(scores.get(str(i), scores.get(i, 0.0)))))
+        except (TypeError, ValueError):
+            s = 0.0
+        scored[i]["llm_score"] = round(s, 3)
+        scored[i]["final_score"] = round(scored[i]["final_score"] + s * weight, 3)
+    log.info("llm_scored", n=len(finalists))
+
+
+def _score_finalists_visual(db: Session, source_id: int, scored: list[dict],
+                            finalists: list[int], cfg: dict,
+                            roots: list[Path] | None = None) -> None:
+    """V4: cheap luma-motion interest for finalist windows."""
+    vision_cfg = cfg.get("vision") or {}
+    if not vision_cfg.get("enabled"):
+        return
+    from app.domain.clipping import vision as vision_mod
+
+    media = None
+    for kind in ("normalized", "raw"):
+        asset = (
+            db.query(models.MediaAsset)
+            .filter_by(source_id=source_id, kind=kind)
+            .order_by(models.MediaAsset.id.desc()).first()
+        )
+        if asset is not None:
+            from pathlib import Path as _Path
+
+            if _Path(asset.path).is_file():
+                media = _Path(asset.path)
+                break
+    if media is None:
+        log.info("vision_skipped", reason="no media")
+        return
+    weight = float(vision_cfg.get("weight", 10.0))
+    fps = int(vision_cfg.get("fps", 1))
+    for i in finalists:
+        try:
+            s = vision_mod.score_window_visual(
+                media, scored[i]["start"], scored[i]["end"], fps=fps,
+                roots=roots)
+        except Exception as e:
+            log.info("vision_fallback", error=str(e)[:200])
+            continue
+        scored[i]["visual_score"] = s
+        scored[i]["final_score"] = round(scored[i]["final_score"] + s * weight, 3)
+    log.info("vision_scored", n=len(finalists))
+
+
 # --- pipeline ------------------------------------------------------------------
 
 def find_moments(
     db: Session, source_id: int, top_k: int | None = None,
     weights_cfg: dict | None = None, embed_fn=None,
-    use_embeddings: bool = True,
+    use_embeddings: bool = True, llm=None,
+    roots: list[Path] | None = None,
 ) -> dict:
     source = db.get(models.Source, source_id)
     if source is None:
@@ -289,8 +364,26 @@ def find_moments(
         scored.append({
             **win, "feats": feats,
             "semantic_relevance": sem_rel, "semantic_novelty": sem_nov,
+            "visual_score": 0.0, "llm_score": 0.0,
             "final_score": round(base, 3),
         })
+
+    # V5 learned ranker (passthrough until a weights file exists)
+    learned = (cfg.get("learned_ranking") or {})
+    if learned.get("enabled"):
+        from app.domain.clipping import ranker
+        scored = ranker.apply(
+            scored, ranker.load_weights(learned.get("path")))
+
+    # V3/V4 run on finalists only (never full videos)
+    finalist_n = min(len(scored),
+                     max(top_k * int(cfg.get("vision", {}).get(
+                         "finalist_multiplier", 3)), top_k))
+    finalists = sorted(range(len(scored)),
+                       key=lambda i: scored[i]["final_score"],
+                       reverse=True)[:finalist_n]
+    _score_finalists_llm(scored, finalists, texts, llm, cfg)
+    _score_finalists_visual(db, source_id, scored, finalists, cfg, roots)
 
     order = select_top(
         scored, vectors, texts, min(top_k, len(scored)), cfg["weights"]
@@ -309,7 +402,8 @@ def find_moments(
             semantic_score=cand["semantic_relevance"],
             emotion_score=cand["feats"]["emotion"],
             novelty_score=cand["semantic_novelty"],
-            visual_score=0.0, editorial_score=cand["feats"]["hook"],
+            visual_score=cand.get("visual_score", 0.0),
+            editorial_score=cand["feats"]["hook"],
             final_score=cand["final_score"], status="CANDIDATE",
         ))
     db.flush()

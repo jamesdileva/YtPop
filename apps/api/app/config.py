@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     clip_embeddings: bool = True
     ollama_host: str = "http://127.0.0.1:11434"
     ollama_editor_model: str = "qwen3.5:9b"
+    # Shared/queued Ollama instances need headroom: requests wait for the
+    # other consumer's inferences to drain (see runbook.md §7).
+    ollama_timeout_seconds: int = 900
+    ollama_retries: int = 1
     # Research/demo-only default: publishing stays blocked until a human
     # operator flips YTPOP_DEMO_MODE=false after review (S12).
     demo_mode: bool = True

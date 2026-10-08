@@ -10,6 +10,12 @@ node_modules/
 dist/
 out/
 *.log
+release/
+apps/desktop/electron/main.js
+apps/desktop/electron/preload.js
+# tsc emits in place (renderer/**, vite.config.ts) — build output, not source
+apps/desktop/**/*.js
+!apps/desktop/**/*.tsx
 
 # App data (keep dirs, ignore artifacts)
 data/database/*.db

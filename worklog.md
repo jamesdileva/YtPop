@@ -431,3 +431,37 @@
 
 ### Commit
 - `34fc0ba S13: feat(automation): job queue + orchestrator + scheduler` (20 files).
+
+## S14 — 2026-10-07 — QA / Packaging / Learning prep (done, MVP LOOP COMPLETE)
+
+### Planned
+- Feedback dataset export, scoring V3–V5 flags + cheap vision detector, packaging, runbook, full gate, Demo 1/2 sign-off, `v0.1.0-mvp` tag.
+
+### Did
+- [x] `GET /feedback/export` (json/csv) — one row per review action with scores + decisions for the future learned ranker
+- [x] `app/domain/clipping/vision.py` — finalists-only luma-motion/interest detector (ffmpeg gray frames ×1fps + Pillow-free pure math)
+- [x] `app/domain/clipping/ranker.py` — file-backed learned weights; identity passthrough until a weights file exists
+- [x] `find_moments` += `vision` / `llm_scoring` / `learned_ranking` flags (all default **off**, V1/V2 path unchanged) + finalist-only execution
+- [x] `configs/scoring.yaml` flags; `RUNNING` → `COMPLETED` for moments list visual score; review UI unaffected
+- [x] Packaging: `electron-builder` config (appId/productName/win nsis), `dist` + `dist:win` scripts; electron tsconfig fix (`"files"` + esModuleInterop) so build no longer breaks packaging
+- [x] `runbook.md` (prereqs/config/run/package/tests/limits/failures/data layout) + shared-Ollama note
+- [x] `.env.example` updated; `runbook` linked from README
+- [x] Tests: `tests/clipping/test_scoring_evolution.py` (7) + 2 ollama retry tests → **128 backend**, 20 frontend
+
+### Verified
+- Full gate: `pytest -q` → `128 passed`; `vitest` → `20 passed`; `tsc` clean; migration chain 11 deep, down/up green; no fair-use claim strings.
+- **Demo 1** (live, permitted fixture): analyze 31s → transcribe 8 segs → 25 candidates → approve 3 → 3-clip episode → render 11s QA 9/9 → 29.7MB playback. PASS.
+- **Demo 2** (live, 20 sources): cluster 2 topics → 60 candidates → approve top-15 → qwen3:4b assembled "Game Update Frenzy: The Secret Code Challenge" (11 clips) → render QA ok 126s. PASS (resume run after fixing shared-Ollama handling).
+- **Demo 3** (S13): one-button pipeline 6/6 stages, real whisper/embeddings/qwen/ffmpeg. PASS.
+- Packaging smoke: `YtPop.exe` (unpacked, 180MB) launches and stays alive; NSIS wired.
+- Shared-Ollama finding (user-flagged): qwen3:4b took **551s** while other projects queued. Fixed with 900s default timeout + 1 retry (retry now surfaced as `ollama_timeout_retry`), configurable via `YTPOP_OLLAMA_TIMEOUT_SECONDS`; runbook documents waiting on the other consumer.
+- Build artifact fix: `npm run build`'s `tsc` emitted `.js` next to `.ts` sources — gitignored via `apps/desktop/**/*.js`, cleaned from tree.
+
+### Next (post-MVP)
+- Post-MVP tuning (documented debt): non-overlapping clip windows, log-scale trend caps, dedupe service vs queue job rows, backend bundling in the installer, feedback→weights training.
+
+### Blockers
+- None.
+
+### Commit
+- Pending: `S14: chore(qa): feedback export, packaging, runbook, v0.1.0-mvp` (+ hash + tag).

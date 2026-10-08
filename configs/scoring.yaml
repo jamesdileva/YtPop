@@ -70,3 +70,23 @@ dangling_starts:
 
 # words-per-second below this counts as dead air
 min_wps: 1.2
+
+# S14 scoring evolution — all default off (V1/V2 path unchanged).
+scoring_version: v2
+
+# V4 cheap vision (luma motion on finalist windows only)
+vision:
+  enabled: false
+  fps: 1
+  weight: 10.0
+  finalist_multiplier: 3
+
+# V3 LLM judge ("is this actually interesting?", finalists only)
+llm_scoring:
+  enabled: false
+  weight: 10.0
+
+# V5 learned ranker (weights file from future training; identity until then)
+learned_ranking:
+  enabled: false
+  path: ""

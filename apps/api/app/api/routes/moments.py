@@ -32,9 +32,17 @@ def find_moments(
     db: Session = Depends(get_db),
     embed_fn=Depends(get_embedder),
 ) -> dict:
+    cfg = clipping.load_scoring()
+    llm = None
+    if (cfg.get("llm_scoring") or {}).get("enabled"):
+        from app.services.ollama_service import OllamaService, model_for
+
+        llm = OllamaService(model=model_for("classifier"),
+                            host=settings.ollama_host)
     try:
         summary = clipping.find_moments(
             db, source_id, top_k=payload.top_k, embed_fn=embed_fn,
+            weights_cfg=cfg, llm=llm,
         )
     except clipping.ClipError as e:
         msg = str(e)
@@ -54,6 +62,7 @@ def _brief(row: models.Moment) -> dict:
         "semantic_score": row.semantic_score,
         "emotion_score": row.emotion_score,
         "novelty_score": row.novelty_score,
+        "visual_score": row.visual_score,
         "editorial_score": row.editorial_score,
         "final_score": row.final_score, "status": row.status,
         "notes": row.notes, "category": row.category,
@@ -146,3 +155,57 @@ def get_moment(moment_id: int, db: Session = Depends(get_db)) -> dict:
     if row is None:
         raise HTTPException(status_code=404, detail="moment not found")
     return _brief(row)
+
+
+@router.get("/feedback/export")
+def export_feedback(format: str = "json",
+                    db: Session = Depends(get_db)):
+    """Training-data export for the future learned ranker (S14, logs only).
+
+    One row per review action: moment scores + human decision + timings.
+    """
+    from fastapi.responses import Response
+
+    if format not in ("json", "csv"):
+        raise HTTPException(
+            status_code=400, detail="format must be json or csv")
+    rows = []
+    for fb in db.query(models.MomentFeedback).order_by(
+            models.MomentFeedback.id.asc()).all():
+        m = db.get(models.Moment, fb.moment_id)
+        if m is None:
+            continue
+        rows.append({
+            "moment_id": fb.moment_id,
+            "source_id": m.source_id,
+            "start_time": m.start_time,
+            "end_time": m.end_time,
+            "moment_type": m.moment_type,
+            "semantic_score": m.semantic_score,
+            "emotion_score": m.emotion_score,
+            "novelty_score": m.novelty_score,
+            "visual_score": m.visual_score,
+            "editorial_score": m.editorial_score,
+            "final_score": m.final_score,
+            "decision": fb.decision,
+            "reason": fb.reason,
+            "original_start": fb.original_start,
+            "original_end": fb.original_end,
+            "adjusted_start": fb.adjusted_start,
+            "adjusted_end": fb.adjusted_end,
+            "created_at": fb.created_at.isoformat()
+            if fb.created_at else None,
+        })
+    if format == "csv":
+        import csv as _csv
+        import io as _io
+
+        buf = _io.StringIO()
+        writer = _csv.DictWriter(
+            buf, fieldnames=list(rows[0].keys()) if rows else ["moment_id"])
+        writer.writeheader()
+        writer.writerows(rows)
+        return Response(content=buf.getvalue(), media_type="text/csv",
+                        headers={"Content-Disposition":
+                                 "attachment; filename=feedback.csv"})
+    return {"rows": rows, "count": len(rows)}

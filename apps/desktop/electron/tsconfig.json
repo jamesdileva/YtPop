@@ -3,8 +3,10 @@
     "target": "ES2020",
     "module": "CommonJS",
     "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
     "outDir": ".",
     "rootDir": "."
   },
-  "include": ["main.ts", "preload.ts"]
+  "files": ["main.ts", "preload.ts"]
 }

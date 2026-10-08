@@ -58,6 +58,30 @@ def test_ping():
     assert OllamaService(model="m", client=down).ping() is False
 
 
+def test_chat_retries_on_timeout():
+    """Shared Ollama: one retry absorbs transport timeouts."""
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise httpx.ReadTimeout("busy queue")
+        return httpx.Response(200, json={"message": {"content": '{"a": 1}'}})
+
+    svc = OllamaService(model="m", client=_client(handler), retries=1)
+    assert svc.chat_json("s", "u") == {"a": 1}
+    assert calls["n"] == 2
+
+
+def test_chat_exhausts_retries():
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("busy queue")
+
+    svc = OllamaService(model="m", client=_client(handler), retries=1)
+    with pytest.raises(OllamaError, match="after 2 attempts"):
+        svc.chat_json("s", "u")
+
+
 def test_model_for_roles():
     assert isinstance(model_for("classifier"), str)
     assert isinstance(model_for("editor"), str)
