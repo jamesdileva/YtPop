@@ -503,3 +503,41 @@
 
 ### Commit
 - `D1: feat(clipping): non-overlapping top-k selection`
+
+## D2 - 2026-10-08 - trend scores stop saturating (done, post-MVP debt)
+
+### Planned
+- S11 debt: linear caps made every fast topic tie at 92.5 (component hits 100
+  as soon as it reaches the cap, so magnitude differences vanish). Keep config
+  knobs, keep determinism, let distinct magnitudes rank differently.
+
+### Did
+- [x] `app/domain/discovery/clustering.py` - `_component()` with `log_scale`
+  switch: saturating `100*v/(v+cap)` (cap = half-saturation: cap -> 50, 9x -> 90,
+  never ties) vs legacy linear `100*min(v/cap, 1)`
+- [x] `configs/default.yaml` + defaults - `trends.log_scale: true`; applied to
+  views_velocity, engagement_velocity and cross_source
+- [x] Tests: curve semantics (0/50/90/monotonic), legacy-linear parity, and an
+  end-to-end "big vs small" seed showing different scores
+
+### Verified
+- `pytest tests/trends` -> 13 passed; full gate `pytest -q` -> 138 passed;
+  `vitest` -> 20 passed. No migration.
+- Live (12 gaming + 8 cooking, real MiniLM clustering): 'Game Update Major'
+  85.95 (+1.3M/h, views component 99.24) vs 'Sourdough Bread Baking' 79.34
+  (+70.5k/h, 87.58) - distinct scores, and ordering unchanged.
+- Ranking was not distorted: the #1 topic is still the fast one; only the
+  magnitude gap is now visible (85.95 vs 79.34 instead of 92.5 vs 92.5).
+- Before that run I tried `100*log1p(v/cap)/log(101)`; it mislabeled cap as the
+  midpoint (cap scored 15, not 50) and pushed scores down ~7 points, so the
+  final curve is algebraic saturation with an honest docstring.
+
+### Next
+- Service-level rows duplicating queue job rows (the item I called D3; the
+  trend caps were D2).
+
+### Blockers
+- None.
+
+### Commit
+- `D2: feat(trends): saturating component curve` 

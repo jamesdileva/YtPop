@@ -157,3 +157,55 @@ def test_fallback_topic_deterministic(db):
     t1 = clustering.fallback_topic(members)
     t2 = clustering.fallback_topic(members)
     assert t1 == t2 and t1[0]
+
+
+# --- D2 log/saturating trend caps ----------------------------------------------
+
+def _component_curve():
+    return clustering._component
+
+
+def test_component_saturating_semantics():
+    comp = _component_curve()
+    # cap is the half-saturation point
+    assert comp(10000, 10000, True) == 50.0
+    assert comp(0, 10000, True) == 0.0
+    assert comp(90000, 10000, True) == 90.0
+    # monotonic and never ties magnitudes above the cap
+    a = comp(20000, 10000, True)
+    b = comp(200000, 10000, True)
+    assert 0 < a < b < 100.0
+
+
+def test_linear_flag_matches_legacy_behaviour():
+    comp = _component_curve()
+    assert comp(10000, 10000, False) == 100.0
+    assert comp(20000, 10000, False) == 100.0  # saturation
+    assert comp(5000, 10000, False) == 50.0
+
+
+def test_distinct_magnitudes_score_differently():
+    comp = _component_curve()
+    small = sum(comp(v, 10000.0, True) for v in (1000, 2000))
+    large = sum(comp(v, 10000.0, True) for v in (100000, 200000))
+    assert large > small
+    # linear mode collapsed both to the same value
+    assert (0.0, 0.0) != (small, large)
+
+
+def test_score_distinguishes_big_and_small_topics(db):
+    _seed(db)
+    big = clustering.cluster_trends(db, embed_fn=fake_embed)
+    big_score = big["trends"][0]["score"]
+    big_vel = big["trends"][0]["velocity"]
+
+    # dwarf every velocity in the same clip, keeping structure identical
+    db2_engine = create_engine("sqlite://", future=True)
+    Base.metadata.create_all(db2_engine)
+    maker = sessionmaker(bind=db2_engine, expire_on_commit=False)
+    db2 = maker()
+    _seed(db2, views=(1_000, 2_000, 3_000, 4_000, 50))
+    small = clustering.cluster_trends(db2, embed_fn=fake_embed)
+    db2.close()
+    assert big_score > small["trends"][0]["score"]
+    assert big_vel > small["trends"][0]["velocity"]

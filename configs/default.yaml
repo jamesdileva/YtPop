@@ -43,6 +43,8 @@ trends:
   engagement_velocity_cap: 1000.0
   cross_source_cap: 5
   recency_half_life_hours: 24.0
+  # log compression: cap is the midpoint (50), 100 only at ~cap^2 magnitude
+  log_scale: true
 scheduler:
   score_refresh_minutes: 15
   drain_minutes: 30

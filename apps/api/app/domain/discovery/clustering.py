@@ -38,6 +38,9 @@ DEFAULT_TRENDS: dict = {
     "engagement_velocity_cap": 1000.0,
     "cross_source_cap": 5,
     "recency_half_life_hours": 24.0,
+    # D2: log compression keeps magnitude differences visible after the
+    # cap is reached (linear mode saturates and ties distinct topics).
+    "log_scale": True,
 }
 
 
@@ -138,6 +141,22 @@ def _eng_velocity_between(first, last) -> float:
             - (first.like_count + first.comment_count)) / hours
 
 
+def _component(value: float, cap: float, log_scale: bool) -> float:
+    """Normalize a raw quantity to 0..100 against `cap`.
+
+    Linear mode saturates: value >= cap scores 100, collapsing magnitude
+    differences (two topics tied at 92.5 in S11). Saturating (default) mode
+    treats `cap` as the half-saturation point: value == cap -> 50, 9x cap ->
+    90, and the top compresses without ever tying distinct magnitudes.
+    Near-zero stays numerically identical to linear mode.
+    """
+    value = max(float(value), 0.0)
+    cap = max(float(cap), 1e-9)
+    if log_scale:
+        return 100.0 * value / (value + cap)
+    return 100.0 * min(value / cap, 1.0)
+
+
 def score_cluster(db: Session, members: list[models.Source],
                   cfg: dict, novelty: float = 100.0) -> dict:
     """Six 0..100 components + weighted score."""
@@ -158,12 +177,14 @@ def score_cluster(db: Session, members: list[models.Source],
                      default=now)
     age_h = max((now - first_seen).total_seconds() / 3600, 0.0)
     half = float(cfg["recency_half_life_hours"])
+    log_scale = bool(cfg.get("log_scale", True))
     components = {
-        "views_velocity": min(100.0, vel / float(cfg["views_velocity_cap"]) * 100),
-        "engagement_velocity": min(
-            100.0, eng_vel / float(cfg["engagement_velocity_cap"]) * 100),
+        "views_velocity": _component(vel, cfg["views_velocity_cap"], log_scale),
+        "engagement_velocity": _component(
+            eng_vel, cfg["engagement_velocity_cap"], log_scale),
         "recency": 100.0 * math.exp(-age_h / half),
-        "cross_source": min(100.0, len(members) / float(cfg["cross_source_cap"]) * 100),
+        "cross_source": _component(len(members), cfg["cross_source_cap"],
+                                   log_scale),
         "momentum": sum(momentums) / len(momentums) if momentums else 50.0,
         "novelty": max(0.0, min(100.0, novelty)),
     }
