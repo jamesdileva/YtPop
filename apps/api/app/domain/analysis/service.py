@@ -1,8 +1,9 @@
 """Transcription orchestration (S5): wav → whisper → DB + json artifact.
 
 Idempotent: re-running without changes skips when the wav sha matches the
-stored transcript (unless force=True). A TRANSCRIBE job row is recorded so
-S13 orchestration has history from day one (sync execution for now).
+stored transcript (unless force=True). A TRANSCRIBE job row is recorded for
+direct calls so S13 history exists — but not when the queue already owns a
+row for this work (D3).
 """
 
 import hashlib
@@ -122,21 +123,27 @@ def transcribe_source(
     db.add(tr)
     db.flush()
     artifact = _write_artifact(source_id, tr.id, result, roots)
-    job = models.Job(
-        type="TRANSCRIBE", status="COMPLETED", priority=30,
-        payload_json=json.dumps({"source_id": source_id,
-                                 "model": result["model"]}),
-        progress=1.0, attempts=1,
-        started_at=datetime.now(timezone.utc),
-        completed_at=datetime.now(timezone.utc),
-    )
-    db.add(job)
-    db.flush()
+    # D3: the queue already owns the job row when this runs under a job
+    from app.workers import context as ctxmod
+
+    job_id: int | None = ctxmod.active_job_id()
+    if job_id is None:
+        job = models.Job(
+            type="TRANSCRIBE", status="COMPLETED", priority=30,
+            payload_json=json.dumps({"source_id": source_id,
+                                     "model": result["model"]}),
+            progress=1.0, attempts=1,
+            started_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(timezone.utc),
+        )
+        db.add(job)
+        db.flush()
+        job_id = job.id
     log.info("transcribed", source_id=source_id, transcript_id=tr.id,
-             segments=len(result["segments"]), job_id=job.id)
+             segments=len(result["segments"]), job_id=job_id)
     return {
         "source_id": source_id, "transcript_id": tr.id,
         "language": result["language"], "model": result["model"],
-        "segments": len(result["segments"]), "job_id": job.id,
+        "segments": len(result["segments"]), "job_id": job_id,
         "artifact": str(artifact), "skipped": False,
     }

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.db import models
 from app.domain.discovery import clustering
 from app.domain.discovery import service as discovery
+from app.workers import context as ctxmod
 from app.workers import queue as q
 
 log = structlog.get_logger()
@@ -226,7 +227,12 @@ def run_job(db: Session, job_id: int, ctx: Ctx | None = None) -> dict:
         db.commit()
         raise q.JobError(f"unknown job type {job.type!r}")
     try:
-        result = handler(db, _json.loads(job.payload_json), ctx)
+        # D3: propagate this job id so services don't write a second row
+        token = ctxmod.set_active_job(job.id)
+        try:
+            result = handler(db, _json.loads(job.payload_json), ctx)
+        finally:
+            ctxmod.reset_active_job(token)
     except Exception as e:
         q.fail(db, job, f"{job.type} failed: {e}")
         db.commit()

@@ -184,7 +184,10 @@ def test_jobs_routes(setup):
     assert client.post(f"/api/v1/jobs/{job['id']}/cancel").status_code == 409
     bad = client.post("/api/v1/jobs",
                       json={"type": "DISCOVER"}).json()
-    assert client.post(f"/api/v1/jobs/{bad['id']}/run").status_code == 409
+    # handler failure reports the stage error, not a bogus state conflict
+    failed = client.post(f"/api/v1/jobs/{bad['id']}/run")
+    assert failed.status_code == 400
+    assert "not configured" in failed.json()["detail"]
     retried = client.post(f"/api/v1/jobs/{bad['id']}/retry").json()
     assert retried["status"] == "QUEUED"
     cancelled = client.post(f"/api/v1/jobs/{bad['id']}/cancel").json()

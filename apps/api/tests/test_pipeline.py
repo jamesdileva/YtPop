@@ -165,3 +165,91 @@ def test_pipeline_aborts_without_approved(db, tmp_path):
     failed_stages = [j for j in db.query(models.Job).all()
                      if j.status == "FAILED"]
     assert failed_stages == []
+
+
+# --- D3 no duplicate job rows -------------------------------------------------
+
+def test_services_skip_row_under_job(db, tmp_path, monkeypatch):
+    """Queue-run TRANSCRIBE must not create a second job row."""
+    from app.db.database import get_session_factory
+    from app.workers import context as ctxmod
+    from app.workers import handlers, queue as q
+
+    media = tmp_path / "d3.mp4"
+    ff.run_cmd("ffmpeg", [
+        "-y", "-f", "lavfi", "-i",
+        "testsrc2=size=160x120:rate=10:duration=4",
+        "-f", "lavfi", "-i", "sine=frequency=440:duration=4",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
+        "-shortest", str(media)])
+    src = models.Source(provider="youtube", external_id="d3", url="",
+                        title="D3 dedupe")
+    db.add(src)
+    db.flush()
+    db.add(models.MediaAsset(source_id=src.id, kind="raw",
+                             path=str(media), duration=4.0))
+    db.commit()
+
+    job = q.enqueue(db, "TRANSCRIBE", {"source_id": src.id})
+    db.commit()
+    ctx = handlers.Ctx(whisper=FakeWhisper(), roots=[tmp_path])
+    handlers.run_job(db, job.id, ctx)
+    rows = db.query(models.Job).filter_by(type="TRANSCRIBE").all()
+    assert len(rows) == 1, "duplicate TRANSCRIBE job row"
+    assert rows[0].id == job.id and rows[0].status == "COMPLETED"
+    # contextvar must not leak past the run
+    assert ctxmod.active_job_id() is None
+
+
+def test_direct_transcribe_still_writes_job_row(db, tmp_path):
+    """Back-compat: no active job -> service records its own row."""
+    from app.db.database import get_session_factory
+    from app.domain.analysis import service as analysis
+
+    media = tmp_path / "d3b.mp4"
+    ff.run_cmd("ffmpeg", [
+        "-y", "-f", "lavfi", "-i",
+        "testsrc2=size=160x120:rate=10:duration=4",
+        "-f", "lavfi", "-i", "sine=frequency=440:duration=4",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
+        "-shortest", str(media)])
+    src = models.Source(provider="youtube", external_id="d3b", url="",
+                        title="Direct")
+    db.add(src)
+    db.flush()
+    db.add(models.MediaAsset(source_id=src.id, kind="raw",
+                             path=str(media), duration=4.0))
+    db.commit()
+    summary = analysis.transcribe_source(
+        db, src.id, whisper=FakeWhisper(), roots=[tmp_path])
+    assert summary["job_id"] is not None
+    assert db.query(models.Job).filter_by(type="TRANSCRIBE").count() == 1
+
+
+def test_render_reuses_queue_row(db, tmp_path, monkeypatch):
+    """Queue-run RENDER must not create a second RENDER job row."""
+    import app.domain.discovery.clustering as clustering_mod
+    from app.workers import handlers, queue as q
+
+    _seed(db, tmp_path)
+    real = clustering_mod.cluster_trends
+    monkeypatch.setattr(
+        clustering_mod, "cluster_trends",
+        lambda db_, **kw: real(db_, embed_fn=_vectors, **kw))
+    # build an episode with clips before rendering it
+    from app.workers import orchestrator
+
+    out = orchestrator.run_daily_episode(
+        db, handlers.Ctx(roots=[tmp_path], editorial=FakeEditorial()))
+    ep_id = out["episode_id"]
+    job = q.enqueue(db, "RENDER",
+                    {"episode_id": ep_id, "preset": "preview_720p"})
+    db.commit()
+    handlers.run_job(db, job.id, handlers.Ctx(roots=[tmp_path]))
+    rows = db.query(models.Job).filter_by(type="RENDER").all()
+    # one row per render call (orchestrator stage + this run), never doubled
+    assert len(rows) == 2
+    assert rows[-1].id == job.id and rows[-1].status == "COMPLETED"
+    assert rows[0].id != rows[1].id
+    # each render call also keeps its Render domain record
+    assert db.query(models.Render).count() == 2

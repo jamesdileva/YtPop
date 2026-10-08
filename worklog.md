@@ -541,3 +541,40 @@
 
 ### Commit
 - `D2: feat(trends): saturating component curve` 
+
+## D3 - 2026-10-08 - one job row per stage (done, post-MVP debt)
+
+### Planned
+- S13 wart: services wrote their own TRANSCRIBE/RENDER job rows even when the
+  queue already owned one, so the ops view double-counted stages (a daily
+  pipeline showed TRANSCRIBE x2, RENDER x2).
+
+### Did
+- [x] `app/workers/context.py` - contextvar `active_job_id` (+ set/reset tokens)
+- [x] `app/workers/handlers.py` - `run_job` installs the job id for the handler
+  call and resets it in `finally` (exception-safe, no leaks across runs)
+- [x] `app/domain/analysis/service.py` - skips its TRANSCRIBE row when running
+  under a job; direct calls keep writing their own row
+- [x] `app/domain/rendering/service.py` - reuses the queue row under a job;
+  the Render domain record is always created (one per render call)
+- [x] `POST /jobs/{id}/run` now maps handler failures to 400 (was 409, which
+  read as a state conflict); only "not QUEUED" stays 409
+- [x] Tests: queue-run TRANSCRIBE/RENDER produce exactly one row each, contextvar
+  does not leak, direct transcribe still writes its row, run-route status codes
+
+### Verified
+- `pytest -q` -> 141 passed; `vitest` -> 20 passed. No migration.
+- Live (:8021): seeded source + approved moment + episode, then queue-ran
+  TRANSCRIBE, FIND_MOMENTS and RENDER. Ops view: `{RENDER: 1, FIND_MOMENTS: 1,
+  TRANSCRIBE: 1}`, `queue_depth = {COMPLETED: 3}`. Seeds/files/rows cleaned.
+- Render domain rows remain per render call (2 after two renders), which is the
+  intended history - only the duplicate *job* rows are gone.
+
+### Next
+- Backend bundling in the installer, then feedback-data to weights.
+
+### Blockers
+- None.
+
+### Commit
+- `D3: fix(workers): services reuse the queue job row`

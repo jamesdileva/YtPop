@@ -72,8 +72,13 @@ def run_job(job_id: int, db: Session = Depends(get_db)) -> dict:
         result = handlers.run_job(db, job_id)
     except q.JobError as e:
         msg = str(e)
-        code = 404 if "not found" in msg else 409
-        raise HTTPException(status_code=code, detail=msg) from e
+        if "not found" in msg:
+            raise HTTPException(status_code=404, detail=msg) from e
+        if "not QUEUED" in msg:
+            # already RUNNING/COMPLETED/... - a state conflict
+            raise HTTPException(status_code=409, detail=msg) from e
+        # handler failed: report the stage error, not a bogus conflict
+        raise HTTPException(status_code=400, detail=msg) from e
     return {"job_id": job_id, "status": "COMPLETED", "result": result}
 
 

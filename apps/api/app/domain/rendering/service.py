@@ -176,14 +176,24 @@ def render_episode(
     )
     db.add(render)
     db.flush()
-    job = models.Job(
-        type="RENDER", status="RUNNING", priority=30,
-        payload_json=json.dumps({"episode_id": episode_id,
-                                 "preset": preset_name}),
-        started_at=datetime.now(timezone.utc),
-    )
-    db.add(job)
-    db.flush()
+    # D3: reuse the queue's row when rendering under a job (Render stays the
+    # domain record; only the duplicate job row is suppressed)
+    from app.workers import context as ctxmod
+
+    active = ctxmod.active_job_id()
+    if active is not None:
+        job = db.get(models.Job, active)
+    else:
+        job = None
+    if job is None:
+        job = models.Job(
+            type="RENDER", status="RUNNING", priority=30,
+            payload_json=json.dumps({"episode_id": episode_id,
+                                     "preset": preset_name}),
+            started_at=datetime.now(timezone.utc),
+        )
+        db.add(job)
+        db.flush()
     out = ff.resolve_data_path(Path("renders") / f"{render.id}.mp4", [base])
     out.parent.mkdir(parents=True, exist_ok=True)
     ass_path = ff.resolve_data_path(
