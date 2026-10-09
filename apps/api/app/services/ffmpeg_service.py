@@ -22,7 +22,16 @@ class PathTraversalError(ValueError):
 
 
 def repo_data_dir() -> Path:
-    # Single source of truth for the repo root lives in app.db.database.
+    """Writable data root for artifacts.
+
+    YTPOP_DATA_DIR overrides (packaged installs must not write into the
+    read-only resources/ directory); otherwise repo_root()/data as before.
+    """
+    import os
+
+    override = os.environ.get("YTPOP_DATA_DIR")
+    if override:
+        return Path(override).resolve()
     from app.db.database import repo_root
 
     return repo_root() / "data"

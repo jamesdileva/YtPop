@@ -11,6 +11,17 @@ from app.config import settings
 
 
 def repo_root() -> Path:
+    """Repo (or packaged) root used for configs/ and data/.
+
+    `YTPOP_ROOT` overrides the path so the packaged Electron shell can point
+    the backend at the bundled files (resources/) instead of the source
+    checkout - parents[4] is meaningless inside an asar.
+    """
+    import os
+
+    override = os.environ.get("YTPOP_ROOT")
+    if override:
+        return Path(override).resolve()
     # app/db/database.py -> parents[4] == repo root (YtPop/)
     return Path(__file__).resolve().parents[4]
 

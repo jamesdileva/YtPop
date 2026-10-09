@@ -20,9 +20,17 @@ export type TrendsData = {
   top_categories: TopCategory[];
 };
 
-const DEFAULT_URL =
-  (import.meta as unknown as { env?: Record<string, string> }).env
-    ?.VITE_API_URL ?? "http://127.0.0.1:8000";
+function resolveApiBase(): string {
+  const injected = (globalThis as unknown as {
+    ytpop?: { apiUrl?: string };
+  }).ytpop?.apiUrl;
+  if (injected) return injected;
+  const built = (import.meta as unknown as { env?: Record<string, string> })
+    .env?.VITE_API_URL;
+  return built ?? "http://127.0.0.1:8000";
+}
+
+const DEFAULT_URL = resolveApiBase();
 
 export function getTrendsUrl(base: string = DEFAULT_URL): string {
   return `${base.replace(/\/$/, "")}/api/v1/trends`;

@@ -4,6 +4,8 @@
   "private": true,
   "workspaces": ["apps/desktop"],
   "scripts": {
-    "test": "npm run test --workspace=apps/desktop"
+    "dev:ui": "npm run dev --workspace=apps/desktop",
+    "test": "npm run test --workspace=apps/desktop",
+    "test:e2e": "npm run test:e2e --workspace=apps/desktop"
   }
 }

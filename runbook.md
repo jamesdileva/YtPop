@@ -40,15 +40,36 @@ npm run electron:dev --workspace=apps/desktop
 Health: `GET /api/v1/health` + `/api/v1/health/dependencies`
 (api/database/youtube/whisper/ollama/ffmpeg).
 
-## 4. Packaged app
+## 4. Packaged app (win-unpacked)
 
 ```powershell
-npm run dist --workspace=apps/desktop        # release\win-unpacked\YtPop.exe
-npm run dist:win --workspace=apps/desktop    # NSIS installer (slow)
+npm run dist --workspace=apps/desktop    # release\win-unpacked\YtPop.exe
 ```
 
-The shell spawns `python -m uvicorn` on launch; Python + FFmpeg must be
-on PATH (backend is not bundled — see roadmap future work).
+- `--dir` (win-unpacked) is the primary artifact; `npm run dist:win`
+  builds the NSIS installer for new machines.
+- `extraResources` bundles `apps/api` + `configs/` into
+  `release/win-unpacked/resources/`, so the exe runs the real backend itself.
+- The shell picks a **free port** (8000 is frequently taken by other
+  projects on this machine) and passes it to the renderer through the
+  preload, so both dev and packaged builds use the same `dist/`.
+- Packaged data lives in `%APPDATA%\YtPop\data` (never inside the read-only
+  install dir); logs go to `%APPDATA%\YtPop\logs\electron.log` (and
+  `%TEMP%\ytpop-main.log` while diagnosing startup).
+- Requires `python` + FFmpeg on PATH (the backend is not bundled yet).
+
+## 4b. E2E (golden fixture, real app)
+
+```powershell
+npm run test:e2e
+```
+
+`apps/desktop/e2e/` seeds a deterministic DB (no network, no LLM) and drives
+the actual Electron app, asserting it is not blank and renders golden data
+(topics, sources + rights badge, transcript, episode, ops). `packaged.spec.ts`
+adds the same check against the built `.exe`; `app.spec.ts` runs the dev shell
+against a fixture API. `YTPOP_SKIP_BACKEND=1` makes the shell adopt an
+existing API instead of spawning one.
 
 ## 5. Tests & migrations
 

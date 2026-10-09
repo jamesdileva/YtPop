@@ -626,3 +626,55 @@
 
 ### Commit
 - `D4: feat(clipping): train ranker from review feedback`
+
+## D5 - 2026-10-08 - packaging (win-unpacked) + golden-fixture e2e (done)
+
+### Planned
+- Make win-unpacked the primary artifact, ship the real backend inside it, and
+  prove the packaged app is not a blank screen with a deterministic e2e.
+
+### Did
+- [x] `repo_root()` / `repo_data_dir()` honor `YTPOP_ROOT` / `YTPOP_DATA_DIR`
+  so a packaged shell can point the backend at bundled and writable files
+  (`tests/test_paths.py`)
+- [x] electron-builder `extraResources` bundles `apps/api` + `configs` into
+  `resources/`; `files` unchanged; `win.target` = `["dir", "nsis"]` (dir first)
+- [x] `electron/main.ts`: resolves bundled vs dev backend, picks a FREE port
+  (8000 is taken by another project on this machine), hands it to the renderer
+  at runtime via preload, health-gates logs, writes to a file instead of
+  stdout (a GUI app writing to a closed pipe throws EPIPE and pops a dialog),
+  `YTPOP_SKIP_BACKEND=1` to adopt an external API
+- [x] `app.setName("YtPop")` + explicit `userData` - the scoped npm name sent
+  data to `Roaming/@ytpop/desktop` (this was the "healthy but empty" bug)
+- [x] packaged installs use `%APPDATA%\YtPop\data` for DB/artifacts, never the
+  read-only install dir
+- [x] vite `base: "./"` - Vite's default `/assets/...` 404s under `file://`,
+  which was the actual blank screen
+- [x] `useHealth` retries for ~30s so a cold backend no longer sticks on
+  "API: checking"; renderer resolves the API base from the preload at runtime
+- [x] `@playwright/test` e2e: `e2e/seed_golden.py` (deterministic DB, no
+  network/LLM), `e2e/app.spec.ts` (dev shell vs fixture API) and
+  `e2e/packaged.spec.ts` (the real `.exe`, seeds/restores userData)
+- [x] runbook sections 4 + 4b; root `dev:ui` / `test:e2e` scripts
+
+### Verified
+- `pytest -q` -> 151 passed; `vitest` -> 40 passed; `tsc` clean
+- `npx playwright test` -> 2 passed: dev shell and the packaged `.exe` both
+  show `API: ok`, the golden topic (score 91.5 / 2.5M views), the source with
+  its rights banner, the transcript, the golden episode and ops `done: 1`
+- Live packaged run (manual): window opens, backend healthy on an ephemeral
+  port, reads the seeded DB from `%APPDATA%\YtPop\data`
+- Bugs found by the packaged-path work and fixed: Vite absolute `/assets`
+  (blank screen), unregistered preload (renderer hit port 8000 = the other
+  project), port collision + silent backend death, EPIPE crash dialog,
+  scoped-name userData (empty data), stale `tsc`/`dist` reuse in e2e.
+
+### Next
+- Remaining known debt: bundle the Python backend itself (currently needs
+  python + FFmpeg on PATH), NSIS installer icon/description metadata.
+
+### Blockers
+- None.
+
+### Commit
+- `D5: feat(packaging): win-unpacked + backend bundling + golden e2e`

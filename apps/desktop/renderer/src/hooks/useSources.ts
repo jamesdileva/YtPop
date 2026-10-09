@@ -23,9 +23,21 @@ export type TranscriptData = {
   segments: TranscriptSegment[];
 };
 
-const DEFAULT_URL =
-  (import.meta as unknown as { env?: Record<string, string> }).env
-    ?.VITE_API_URL ?? "http://127.0.0.1:8000";
+/**
+ * API base resolution order: preload-injected runtime value (packaged/e2e),
+ * build-time VITE_API_URL (plain browser dev), then the localhost default.
+ */
+function resolveApiBase(): string {
+  const injected = (globalThis as unknown as {
+    ytpop?: { apiUrl?: string };
+  }).ytpop?.apiUrl;
+  if (injected) return injected;
+  const built = (import.meta as unknown as { env?: Record<string, string> })
+    .env?.VITE_API_URL;
+  return built ?? "http://127.0.0.1:8000";
+}
+
+const DEFAULT_URL = resolveApiBase();
 
 export function apiUrl(path: string, base: string = DEFAULT_URL): string {
   return `${base.replace(/\/$/, "")}${path}`;
