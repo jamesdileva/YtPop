@@ -11,6 +11,8 @@ dist/
 out/
 *.log
 release/
+test-results/
+playwright-report/
 apps/desktop/electron/main.js
 apps/desktop/electron/preload.js
 # tsc emits in place (renderer/**, vite.config.ts) — build output, not source
