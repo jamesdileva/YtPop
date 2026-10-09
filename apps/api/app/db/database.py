@@ -66,6 +66,26 @@ def get_db() -> Iterator[Session]:
         db.close()
 
 
+def ensure_schema() -> bool:
+    """Create missing tables from model metadata. Returns True if it had to.
+
+    Dev/test flows use Alembic; the packaged (frozen) backend uses this so a
+    first run on a fresh data dir works without shipping migrations.
+    """
+    from app.db import models  # noqa: F401  (register metadata)
+    from app.db.base import Base
+    from sqlalchemy import inspect
+
+    engine = get_engine()
+    existing = set(inspect(engine).get_table_names())
+    missing = set(Base.metadata.tables) - existing
+    if not missing:
+        return False
+    resolve_db_path().parent.mkdir(parents=True, exist_ok=True)
+    Base.metadata.create_all(engine)
+    return True
+
+
 def init_db(url: str | None = None) -> Engine:
     """Create parent dirs + tables (dev fallback; Alembic is source of truth)."""
     from app.db import models  # noqa: F401  (register metadata)

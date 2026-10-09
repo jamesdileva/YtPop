@@ -252,9 +252,14 @@ def cluster_trends(db: Session, region: str = "US", category: str = "",
     if not sources:
         return {"trends": [], "clusters": 0, "sources": 0}
     if embed_fn is None:
-        from app.domain.clipping.service import Embedder
+        from app.domain.clipping import service as clipping_service
 
-        embed_fn = Embedder().encode
+        resolved = clipping_service.default_embedder()
+        if resolved is None:
+            raise TrendError(
+                "no embedding backend available (MiniLM import failed and "
+                "Ollama is unreachable) - clustering needs embeddings")
+        embed_fn = resolved
     vectors = embed_fn([_embed_text(s) for s in sources])
 
     # novelty baseline: embeddings of existing ACTIVE trend topics

@@ -54,12 +54,18 @@
           "**/*",
           "!**/__pycache__/**",
           "!**/.pytest_cache/**",
-          "!**/*.pyc"
+          "!**/*.pyc",
+          "!dist-frozen/**",
+          "!build-frozen/**"
         ]
       },
       {
         "from": "../../configs",
         "to": "configs"
+      },
+      {
+        "from": "../../apps/api/dist-frozen/api-backend",
+        "to": "backend"
       }
     ],
     "win": {

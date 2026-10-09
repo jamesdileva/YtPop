@@ -66,13 +66,25 @@ function freePort(): Promise<number> {
 }
 
 function bundledApiDir(): string | null {
-  // electron-builder `extraResources` copies apps/api and configs into
-  // resources/api and resources/configs. `python -m uvicorn app.main:app`
-  // needs resources/api as cwd (app package lives one level down).
+  // electron-builder `extraResources` copies apps/api + configs into
+  // resources/api and resources/configs (source checkout runs).
   const candidate = path.join(process.resourcesPath, "api");
-  return fs.existsSync(path.join(candidate, "app"))
-    ? candidate
-    : null;
+  return fs.existsSync(path.join(candidate, "app")) ? candidate : null;
+}
+
+function bundledBackendExe(): string | null {
+  // D7: PyInstaller freeze of the API (self-contained python + ffmpeg).
+  const exe = path.join(process.resourcesPath, "backend",
+                       "api-backend.exe");
+  return fs.existsSync(exe) ? exe : null;
+}
+
+function backendWorkingDir(): string {
+  const exe = bundledBackendExe();
+  if (exe) return path.dirname(exe);
+  const apiDir = bundledApiDir();
+  // `python -m uvicorn app.main:app` needs resources/api as cwd
+  return apiDir ?? path.join(__dirname, "..", "..", "api");
 }
 
 function resolveRootDir(): string {
@@ -109,7 +121,7 @@ async function startBackend(): Promise<string> {
   }
   log("startBackend: enter");
   const apiDir = bundledApiDir();
-  const cwd = apiDir ?? path.join(__dirname, "..", "..", "api");
+  const dataRoot = path.join(app.getPath("userData"), "data");
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     YTPOP_ROOT: resolveRootDir(),
@@ -117,7 +129,6 @@ async function startBackend(): Promise<string> {
   };
   if (isPackaged) {
     // packaged installs must not write into the read-only resources/ dir
-    const dataRoot = path.join(app.getPath("userData"), "data");
     for (const dir of ["database", "media", "transcripts", "clips",
                       "renders", "captions", "storyboards", "raw", "thumbnails"]) {
       fs.mkdirSync(path.join(dataRoot, dir), { recursive: true });
@@ -126,21 +137,34 @@ async function startBackend(): Promise<string> {
     env.YTPOP_DB_PATH = path.join(dataRoot, "database", "mega_clipper.db");
   }
   const port = await freePort();
-  log(`startBackend: port=${port}`);
   const apiUrl = `http://127.0.0.1:${port}`;
+  const cwd = backendWorkingDir();
+  const frozen = bundledBackendExe();
+
+  let command: string;
+  let args: string[];
+  if (frozen) {
+    // D7: self-contained backend - nothing is required on PATH
+    command = frozen;
+    args = ["--host", "127.0.0.1", "--port", String(port)];
+    env.PATH = `${cwd}${path.delimiter}${env.PATH ?? ""}`;
+    log(`backend: frozen exe ${frozen}`);
+  } else {
+    // source checkout: needs python on PATH
+    command = process.platform === "win32" ? "python" : "python3";
+    args = ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1",
+            "--port", String(port)];
+  }
   // stdio 'ignore' keeps the backend writing nowhere that can EPIPE when
   // the parent's pipe closes (a GUI app has no console to write to)
-  backend = spawn(
-    "python",
-    ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1",
-     "--port", String(port)],
-    { cwd, shell: false, env, stdio: "ignore" },
-  );
+  backend = spawn(command, args, { cwd, shell: false, env, stdio: "ignore" });
+  backend.on("error", (err) =>
+    log(`backend spawn error: ${err.message} (cwd=${cwd})`));
   backend.on("exit", (code, signal) =>
     log(`backend exited code=${code} signal=${signal} port=${port}`));
-  log(`backend spawned cwd=${cwd} port=${port} packaged=${isPackaged} ` +
-      `root=${env.YTPOP_ROOT} db=${env.YTPOP_DB_PATH ?? "(default)"} ` +
-      `data=${env.YTPOP_DATA_DIR ?? "(default)"}`);
+  log(`backend spawned command=${command} cwd=${cwd} port=${port} ` +
+      `packaged=${isPackaged} root=${env.YTPOP_ROOT} ` +
+      `db=${env.YTPOP_DB_PATH ?? "(default)"}`);
   return apiUrl;
 }
 

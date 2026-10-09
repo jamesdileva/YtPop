@@ -13,6 +13,9 @@ out/
 release/
 test-results/
 playwright-report/
+# PyInstaller freeze of the packaged backend (rebuilt by npm run pack:backend)
+apps/api/dist-frozen/
+apps/api/build-frozen/
 apps/desktop/electron/main.js
 apps/desktop/electron/preload.js
 # tsc emits in place (renderer/**, vite.config.ts) — build output, not source

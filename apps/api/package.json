@@ -1,0 +1,8 @@
+{
+  "name": "@ytpop/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "pack": "python -m PyInstaller api_backend.spec --noconfirm --distpath dist-frozen --workpath build-frozen"
+  }
+}

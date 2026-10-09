@@ -168,7 +168,8 @@ def score_window(feats: dict, weights: dict) -> float:
 # --- embeddings (V2) ----------------------------------------------------------
 
 class Embedder:
-    """Lazy all-MiniLM-L6-v2; encode() returns L2-normalized vectors."""
+    """Deprecated alias: embeddings now resolve through
+    app.services.embedding_service (MiniLM -> Ollama -> None, D7)."""
 
     MODEL = "all-MiniLM-L6-v2"
 
@@ -179,17 +180,23 @@ class Embedder:
     @property
     def model(self):
         if self._model is None:
-            from sentence_transformers import SentenceTransformer
+            from app.services.embedding_service import LocalMiniLM
 
-            log.info("embedder_load", model=self.model_name)
-            self._model = SentenceTransformer(self.model_name)
+            self._model = LocalMiniLM(self.model_name).model
         return self._model
 
     def encode(self, texts: list[str]) -> list[list[float]]:
-        import numpy as np
+        from app.services.embedding_service import LocalMiniLM
 
-        vecs = self.model.encode(texts, normalize_embeddings=True)
-        return [list(map(float, v)) for v in np.asarray(vecs)]
+        return LocalMiniLM(self.model_name).encode(texts)
+
+
+def default_embedder():
+    """Resolve the runtime embedder's encode() (or None if no backend)."""
+    from app.services.embedding_service import resolve_embedder
+
+    resolved = resolve_embedder()
+    return resolved.encode if resolved is not None else None
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -390,7 +397,12 @@ def find_moments(
     vectors: list[list[float]] | None = None
     topic_vec: list[float] | None = None
     if use_embeddings:
-        fn = embed_fn or Embedder().encode
+        fn = embed_fn or default_embedder()
+        if fn is None:
+            raise ClipError(
+                "no embedding backend available (MiniLM import failed and "
+                "Ollama is unreachable) - set clip_embeddings=false for "
+                "keyword-only scoring")
         vectors = fn(texts + [source.title or "video"])
         topic_vec = vectors[-1]
         vectors = vectors[:-1]

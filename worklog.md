@@ -709,3 +709,50 @@
 
 ### Commit
 - `D6: feat(discovery): .env key wiring + live discovery e2e`
+
+## D7 - 2026-10-09 - packaged app needs nothing on PATH (done)
+
+### Planned
+- Close the last packaging gap: freeze the backend (python + deps + ffmpeg)
+  into the win-unpacked build so the app runs on a bare Windows machine.
+
+### Did
+- [x] `apps/api/api_backend.py` + `api_backend.spec` - PyInstaller freeze of
+  the API (`--host/--port`, uvicorn workers=1). Excludes torch /
+  sentence_transformers (they only back MiniLM); bundles the whole ffmpeg bin
+  dir (exes + DLLs, since the local build is shared)
+- [x] `app/services/embedding_service.py` - embedder resolution: MiniLM ->
+  Ollama (`/api/embed`, nomic-embed-text, normalized) -> None. `clipping`
+  and `clustering` use it and fail loudly when nothing is available; the S6
+  `Embedder` class stays as a thin alias
+- [x] `app/routes/moments.get_embedder` now returns the resolved embedder
+  (it used to construct the torch-backed class directly - this was the frozen
+  build's 500)
+- [x] `app/db/database.ensure_schema()` - creates missing tables from model
+  metadata; called only from the frozen entry point so a first run on a fresh
+  data dir works without shipping Alembic (dev/tests keep Alembic)
+- [x] `electron-builder` bundles `apps/api/dist-frozen/api-backend` as
+  `resources/backend`; `main.ts` prefers that exe (prepending its dir to PATH)
+  and falls back to `python -m uvicorn` only from a checkout
+- [x] Root `npm run pack:backend` / `npm run dist`; apps/api workspace +
+  gitignore for freeze artifacts
+- [x] Tests: `tests/clipping/test_embedding_service.py` (8) + frozen-path
+  regression `e2e/packaged.spec.ts` "needs nothing on PATH"; runbook §4
+
+### Verified
+- `pytest -q` -> 159 passed; `vitest` -> 40 passed; `npx playwright test` ->
+  3 passed + 1 skipped (live discovery still awaits a YouTube key)
+- Frozen exe alone (PATH = System32 only): health 200, deps ffmpeg/whisper/
+  database `ok`, and a real analyze -> transcribe (2 segments, ~5s,
+  ctranslate2 inside the freeze) -> find-moments (Ollama embeddings) run
+- Packaged exe with PATH stripped: boots, `API: ok`, golden sources visible -
+  both from a manual launch and the new e2e regression test
+- Size: ~720MB freeze (ffmpeg shared build dominates) - documented as the
+  known trade-off with a trimming path
+
+### Next
+- Live discovery e2e once a YouTube key is added to `.env`
+  (YTPOP_YOUTUBE_API_KEY).
+
+### Commit
+- `D7: feat(packaging): freeze backend + ffmpeg, no PATH required`

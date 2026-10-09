@@ -84,7 +84,22 @@ npm run dist --workspace=apps/desktop    # release\win-unpacked\YtPop.exe
 - Packaged data lives in `%APPDATA%\YtPop\data` (never inside the read-only
   install dir); logs go to `%APPDATA%\YtPop\logs\electron.log` (and
   `%TEMP%\ytpop-main.log` while diagnosing startup).
-- Requires `python` + FFmpeg on PATH (the backend is not bundled yet).
+- **No Python or FFmpeg required on PATH for the packaged app**: `npm run dist`
+  first freezes the API (`npm run pack:backend`) into
+  `resources/backend/api-backend.exe`, bundling the interpreter, the Python
+  deps and the ffmpeg binaries + their DLLs. The shell prefers that frozen
+  exe and only falls back to `python -m uvicorn` when running from a
+  checkout. A regression test (`e2e/packaged.spec.ts` "needs nothing on
+  PATH") launches the exe with `PATH` stripped to System32.
+- Size note: the freeze is ~720MB because the ffmpeg build on this machine is
+  the full shared master build. Swapping it for a slimmer static ffmpeg would
+  cut most of that; not done yet.
+- Torch/sentence-transformers are deliberately excluded from the freeze
+  (they only back MiniLM embeddings). Without them the backend logs a warning
+  and falls back to Ollama embeddings (`nomic-embed-text`), which needs Ollama
+  running. If neither is available, `find-moments` and `cluster` fail with a
+  clear "no embedding backend" error instead of silently scoring badly; pass
+  `clip_embeddings: false` to stay keyword-only.
 
 ## 5. E2E (golden fixture + packaged exe)
 

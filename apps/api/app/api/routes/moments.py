@@ -17,9 +17,12 @@ router = APIRouter()
 
 
 def get_embedder():
+    """Resolved embedding backend (MiniLM -> Ollama -> None), or None when
+    clip_embeddings is off (keyword-only). find_moments also resolves
+    internally when this is None, so both paths stay consistent."""
     if not settings.clip_embeddings:
         return None
-    return clipping.Embedder().encode
+    return clipping.default_embedder()
 
 
 class FindMomentsRequest(BaseModel):
