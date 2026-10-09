@@ -1,4 +1,20 @@
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
+
+# The desktop shell spawns the backend directly, so load the repo/.env
+# (gitignored) the same way uvicorn's --env-file would.
+_REPO_ENV = Path(__file__).resolve().parents[4] / ".env"
+if _REPO_ENV.is_file():
+    load_dotenv(_REPO_ENV, override=False)
+
+# Packaged installs may keep their secrets in the user data dir; those win
+# over the repo file so a portable install never depends on a checkout.
+_DATA_ENV = Path(os.environ.get("YTPOP_DATA_DIR", "")) / ".env"
+if _DATA_ENV.is_file():
+    load_dotenv(_DATA_ENV, override=True)
 
 
 class Settings(BaseSettings):

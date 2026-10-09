@@ -678,3 +678,34 @@
 
 ### Commit
 - `D5: feat(packaging): win-unpacked + backend bundling + golden e2e`
+
+## D6 - 2026-10-08 - youtube key wiring + live discovery e2e (done)
+
+### Did
+- [x] Backend now loads a repo `.env` (python-dotenv) and, for packaged
+  installs, `%APPDATA%\YtPop\data\.env` (which wins), so the desktop shell
+  gets keys without a checkout
+- [x] Fixed `.env.example`: names carry the `YTPOP_` prefix - it previously
+  said `YOUTUBE_API_KEY`, which would silently never be read
+- [x] `e2e/live-discovery.spec.ts` - opt-in live E2E (skips without a key):
+  real `POST /sources/discover` on an empty temp DB, asserts 10 rows imported
+  for 1 quota unit, provider/external_id/status, score refresh, and the
+  dashboard sections filling from live snapshots
+- [x] runbook: YouTube key section (where to put it, packaged path), live E2E
+  instructions, renumbered headings
+
+### Verified
+- `pytest -q` -> 151 passed (config change is import-safe with no .env)
+- `vitest` -> 40 passed
+- `npx playwright test e2e/live-discovery.spec.ts` -> 1 skipped (no key set),
+  which is the correct guard behaviour
+- Run it with a key via `$env:YTPOP_YOUTUBE_API_KEY = "<key>"` then the spec
+  above (1 quota unit per run).
+
+### Notes
+- The packaged app currently needs `python` + FFmpeg on PATH because the
+  backend is spawned as `python -m uvicorn ...` rather than embedded;
+  bundling the Python runtime itself remains the last packaging gap.
+
+### Commit
+- `D6: feat(discovery): .env key wiring + live discovery e2e`
