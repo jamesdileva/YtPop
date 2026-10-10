@@ -19,7 +19,7 @@
 - [x] Scene detection.
 - [x] Phase 9 originality overlay pack (narration is script-only).
 - [x] Shrink the packaged build (718MB -> 432MB frozen / ~700MB packaged).
-- [ ] Retraining cadence for the learned ranker (D4 trains on demand).
+- [x] Retraining cadence for the learned ranker (policy-gated, audited).
 - [ ] NSIS installer smoke test (the `--dir` win-unpacked build is verified).
 
 ## Goal

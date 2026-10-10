@@ -145,11 +145,12 @@ def test_scheduler_tick_and_intervals(setup):
     db = factory()
     first = sched.tick(db)
     assert sorted(first["enqueued"]) == ["CLUSTER", "DRAIN_ANALYSIS",
-                                        "REFRESH_SCORES"]
+                                        "REFRESH_SCORES", "RETRAIN"]
     second = sched.tick(db)
     assert second["enqueued"] == []
     future = datetime.now(timezone.utc) + timedelta(hours=2)
     third = sched.tick(db, now=future)
+    # 15/30/60m are due again; RETRAIN (24h) is not
     assert sorted(third["enqueued"]) == ["CLUSTER", "DRAIN_ANALYSIS",
                                         "REFRESH_SCORES"]
     db.close()
@@ -160,9 +161,9 @@ def test_scheduler_status_endpoint(setup):
     body = client.get("/api/v1/scheduler/status").json()
     assert body["schedule"]["score_refresh_minutes"] == 15
     assert set(body["last_runs"]) == {"REFRESH_SCORES", "DRAIN_ANALYSIS",
-                                      "CLUSTER"}
+                                      "CLUSTER", "RETRAIN"}
     r = client.post("/api/v1/scheduler/tick").json()
-    assert len(r["enqueued"]) == 3
+    assert len(r["enqueued"]) == 4
 
 
 def test_jobs_routes(setup):

@@ -166,7 +166,7 @@ If you still time out, wait for the other project to finish or set
 `renders/`, `database/mega_clipper.db`. Every artifact has a DB row.
 Logs carry `[episode/job/source/stage]` correlation â€” grep those first.
 
-## 9. Scene detection (D10)
+## 9c. Scene detection (D10)
 
 Cheap and dependency-free: the bundled ffmpeg computes per-frame scene
 scores (`select=scene`), and we parse `metadata=print` output. No
@@ -198,7 +198,7 @@ boundary. Note the scene metric is luma-based: cuts between similar
 brightness scenes can score below the threshold, so lower `threshold` on
 media with many colour-only changes.
 
-## 9b. Originality overlay pack (Phase 9 / D11)
+## 10. Originality overlay pack (Phase 9 / D11)
 
 Turns an episode into editorial production instead of a concatenation:
 context and commentary cards, source cards (channel + title), a comparison
@@ -224,7 +224,43 @@ Known limits: narration is a **script** (text + timing), not spoken audio —
 no TTS stage yet. The scene metric and luma caveats from section 9 apply to
 annotations' placement.
 
-## 10. Train the clip ranker (D4)
+## 11. Ranker retraining cadence (D13)
+
+The ranker retrains itself on a schedule, but only when a new model actually
+earns promotion:
+
+```powershell
+GET  /api/v1/ranker/status   # labels, last run, holdout metrics, next-due
+POST /api/v1/ranker/retrain   # {"force": true} bypasses the cadence policy
+```
+
+Policy (`configs/default.yaml` → `retraining:`):
+
+| Key | Default | Meaning |
+|---|---|---|
+| `min_new_labels` | 20 | new labelled rows since the last accepted run |
+| `min_interval_hours` | 24 | minimum age of the last accepted run |
+| `min_holdout_accuracy` / `_auc` | 0.6 / 0.6 | floors the new model must clear |
+| `require_improvement` | true | must beat the current weights' holdout accuracy |
+| `min_rows` | 10 | hard floor on dataset size |
+| `output` | `data/models/ranker.json` | where the weights live |
+
+The scheduler enqueues a `RETRAIN` job every `retrain_hours` (24h by
+default); the worker handler calls the same policy, so manual and scheduled
+runs behave identically. The previous weights file is backed up as
+`.json.bak` before promotion, and **every** decision — including refusals —
+is written to `ranker_runs`, so you can audit why a model was or wasn't
+promoted.
+
+The holdout split is class-balanced: a naive every-Nth split puts all
+positives in one side on separable data, which pins AUC at 0.5 and makes the
+gate worthless. See `train_from`/`split_indices`/`evaluate` in
+`app/domain/clipping/training.py`.
+
+Weights are only applied when `learned_ranking.enabled` is true in
+`configs/scoring.yaml`; the status endpoint reports that explicitly.
+
+## 12. Train the clip ranker (D4)
 
 Review decisions in the app produce labelled feature vectors
 (`moments.features_json` + `moment_feedback`). Train locally, no GPU, no

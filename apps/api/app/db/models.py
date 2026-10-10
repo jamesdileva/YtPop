@@ -236,6 +236,27 @@ class Scene(Base):
     score: Mapped[float] = mapped_column(Float, default=0.0)
 
 
+class RankerRun(Base):
+    """Audit trail for retraining the clip ranker (D13)."""
+
+    __tablename__ = "ranker_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    trained_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    rows: Mapped[int] = mapped_column(Integer, default=0)
+    positive: Mapped[int] = mapped_column(Integer, default=0)
+    negative: Mapped[int] = mapped_column(Integer, default=0)
+    new_labels: Mapped[int] = mapped_column(Integer, default=0)
+    holdout_accuracy: Mapped[float] = mapped_column(Float, default=0.0)
+    holdout_auc: Mapped[float] = mapped_column(Float, default=0.0)
+    accepted: Mapped[bool] = mapped_column(default=False)
+    reason: Mapped[str] = mapped_column(Text, default="")
+    weights_path: Mapped[str] = mapped_column(Text, default="")
+    forced: Mapped[bool] = mapped_column(default=False)
+
+
 class SourceSnapshot(Base):
     """One metadata observation per fetch — enables velocity calculations (S3)."""
     __tablename__ = "source_snapshots"

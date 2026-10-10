@@ -58,4 +58,14 @@ scheduler:
   score_refresh_minutes: 15
   drain_minutes: 30
   cluster_minutes: 60
+  retrain_hours: 24
   loop_seconds: 60
+retraining:
+  enabled: true
+  min_new_labels: 20
+  min_interval_hours: 24
+  min_rows: 10
+  min_holdout_accuracy: 0.6
+  min_holdout_auc: 0.6
+  require_improvement: true
+  output: data/models/ranker.json

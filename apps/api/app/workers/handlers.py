@@ -196,6 +196,12 @@ def handle_render(db: Session, payload: dict, ctx: Ctx) -> dict:
     return {"render_id": summary["render_id"], "qa_ok": summary["qa"]["ok"]}
 
 
+def handle_retrain(db: Session, payload: dict, ctx: Ctx) -> dict:
+    from app.domain.clipping import retraining
+
+    return retraining.maybe_retrain(db, force=bool(payload.get("force")))
+
+
 HANDLERS = {
     "REFRESH_SCORES": handle_refresh_scores,
     "CLUSTER": handle_cluster,
@@ -205,6 +211,7 @@ HANDLERS = {
     "DRAIN_ANALYSIS": handle_drain_analysis,
     "GENERATE": handle_generate,
     "RENDER": handle_render,
+    "RETRAIN": handle_retrain,
 }
 
 

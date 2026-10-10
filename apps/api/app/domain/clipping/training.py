@@ -131,6 +131,92 @@ def build_dataset(db: Session) -> tuple[list[dict], list[int], list[str]]:
     return rows, labels, decisions
 
 
+def split_indices(
+    n: int, test_every: int = 4, labels: list[int] | None = None
+) -> tuple[list[int], list[int]]:
+    """Deterministic holdout split keeping BOTH classes in both splits.
+
+    A naive every-Nth split fails on perfectly separable data (e.g.
+    [1,0,1,0,...] puts all negatives in train and all positives in test),
+    which makes AUC 0.5 regardless of model quality. With labels given, the
+    split is class-balanced: it walks the rows, dumping each into test until
+    it holds `max(1, count // test_every)` of each class, then fills train.
+    Without labels it degrades to the alternating every-Nth split.
+    """
+    if n <= 2:
+        return list(range(n)), []
+    test: list[int] = []
+    train: list[int] = []
+    if labels is None:
+        for i in range(n):
+            (test if len(test) + len(train) % 1 == 0 and
+             (len(test) + len(train)) % test_every == 0 else train).append(i)
+        if not test:
+            test.append(train.pop())
+        return train, test
+    quota = max(1, sum(1 for y in labels if y == 1) // test_every)
+    pos_in_test = neg_in_test = 0
+    for i in range(n):
+        label = labels[i]
+        if (pos_in_test < quota if label == 1 else neg_in_test < quota) and \
+                (len(train) >= 2):
+            test.append(i)
+            if label == 1:
+                pos_in_test += 1
+            else:
+                neg_in_test += 1
+        else:
+            train.append(i)
+    if not test:
+        test.append(train.pop())
+    return train, test
+
+
+def predict(weights: dict, features: list[dict]) -> list[float]:
+    """P(label=1) for each feature dict using stored standardization."""
+    names = [k for k in (weights.get("features") or []) if isinstance(k, str)]
+    coef = weights.get("coefficients") or {}
+    mean = weights.get("mean") or {}
+    std = weights.get("std") or {}
+    bias = float(weights.get("bias", 0.0))
+    probs = []
+    for feats in features:
+        z = bias
+        for name in names:
+            sd = float(std.get(name, 1.0) or 1.0)
+            raw = float(feats.get(name, 0.0) or 0.0)
+            z += (raw - float(mean.get(name, 0.0) or 0.0)) / (sd or 1.0) * \
+                float(coef.get(name, 0.0))
+        probs.append(1.0 / (1.0 + math.exp(-max(min(z, 30.0), -30.0))))
+    return probs
+
+
+def _auc(probs: list[float], labels: list[int]) -> float:
+    pos = [p for p, y in zip(probs, labels) if y == 1]
+    neg = [p for p, y in zip(probs, labels) if y == 0]
+    if not pos or not neg:
+        return 0.5
+    wins = ties = 0
+    for p in pos:
+        for n in neg:
+            wins += 1 if p > n else 0
+            ties += 1 if p == n else 0
+    return (wins + 0.5 * ties) / (len(pos) * len(neg))
+
+
+def evaluate(weights: dict, features: list[dict], labels: list[int]) -> dict:
+    """Holdout accuracy + AUC (0.5 = coin flip)."""
+    if not features:
+        return {"n": 0, "accuracy": 0.0, "auc": 0.5, "error": "empty holdout"}
+    probs = predict(weights, features)
+    correct = sum(1 for p, y in zip(probs, labels) if (p >= 0.5) == bool(y))
+    return {
+        "n": len(labels),
+        "accuracy": round(correct / len(labels), 4),
+        "auc": round(_auc(probs, labels), 4),
+    }
+
+
 def train(db: Session, min_rows: int = 10) -> dict:
     """Build the dataset and fit; returns the weights payload."""
     feats, labels, decisions = build_dataset(db)
@@ -159,6 +245,36 @@ def train(db: Session, min_rows: int = 10) -> dict:
             "positive": int(sum(labels)),
             "negative": int(len(labels) - sum(labels)),
             "decisions_seen": decisions,
+        },
+    }
+
+
+def train_from(rows: list[dict], labels: list[int],
+               decisions: list[str] | None = None) -> dict:
+    """Fit on an explicit subset (used by the holdout retraining path)."""
+    if not rows:
+        raise TrainingError("no rows to train on")
+    if len(set(labels)) < 2:
+        raise TrainingError(
+            "need both approved and rejected rows to train on this split")
+    names = _feature_names(rows)
+    if not names:
+        raise TrainingError("no features present in labelled rows")
+    matrix = [[float(f.get(name, 0.0) or 0.0) for name in names]
+              for f in rows]
+    coef, bias, means, stds = train_logistic(matrix, labels)
+    return {
+        "version": 1,
+        "features": names,
+        "coefficients": {n: round(c, 6) for n, c in zip(names, coef)},
+        "bias": round(bias, 6),
+        "mean": {n: round(m, 6) for n, m in zip(names, means)},
+        "std": {n: round(s, 6) for n, s in zip(names, stds)},
+        "meta": {
+            "rows": len(matrix),
+            "positive": int(sum(labels)),
+            "negative": int(len(labels) - sum(labels)),
+            "decisions_seen": decisions or [],
         },
     }
 

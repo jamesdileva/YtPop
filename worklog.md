@@ -915,3 +915,38 @@
 
 ### Commit
 - `D12: chore(packaging): trim freeze 718MB to 432MB`
+
+## D13 - 2026-10-09 - ranker retraining cadence (done)
+
+### Planned
+- Make the learned ranker retrain itself on a schedule, safely: a bad
+  weights file silently degrades every find-moments call, so promotion is
+  gated by a holdout check and every decision is audited.
+
+### Did
+- [x] `app/domain/clipping/retraining.py` - policy gate (new labels +
+  interval), stratified holdout train, accuracy/AUC floors, optional
+  improvement requirement, `.json.bak` backup before promotion, and a
+  `ranker_runs` audit row for refusals as well as acceptances
+- [x] `RankerRun` model + migration `ac3bf805eb17`
+- [x] `worker` handler `RETRAIN` + scheduler task (`retrain_hours: 24`);
+  `_interval()` now handles `_minutes` and `_hours` keys
+- [x] Routes `GET /ranker/status`, `POST /ranker/retrain` (`force` bypasses
+  the cadence policy only, never the validation)
+- [x] `training.split_indices(labels=...)` / `train_from` / `predict` /
+  `evaluate` (accuracy + AUC) added for the holdout path
+- [x] runbook section 11; roadmap item ticked
+
+### Verified
+- `pytest -q` -> 191 passed; `vitest` -> 40 passed; `playwright` -> 4 passed
+- Live: 12 labels (6/6) -> `POST /ranker/retrain` accepted, holdout
+  accuracy 1.0 / AUC 1.0, weights written (415B), status shows the accepted
+  run, and applying them ranks hook=1 above hook=0 (54.9 vs 45.1)
+- Refusal paths exercised: too-few-new-labels, interval-not-elapsed,
+  single-class, uncorrelated labels (weights untouched), no-improvement
+- Two bugs found by the live run: the split was class-collapsing on
+  separable data (AUC pinned at 0.5 - the gate would have refused every good
+  model), and leftover labels from earlier runs mixing policies
+
+### Commit
+- `D13: feat(clipping): policy-gated ranker retraining cadence`

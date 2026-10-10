@@ -24,14 +24,25 @@ DEFAULT_SCHEDULER: dict = {
     "score_refresh_minutes": 15,
     "drain_minutes": 30,
     "cluster_minutes": 60,
+    "retrain_hours": 24,
     "loop_seconds": 60,
 }
 
+# (job type, payload, config key). Keys ending in _minutes are read as
+# minutes, _hours as hours.
 TASKS: tuple[tuple[str, dict, str], ...] = (
     ("REFRESH_SCORES", {}, "score_refresh_minutes"),
     ("DRAIN_ANALYSIS", {"limit": 5}, "drain_minutes"),
     ("CLUSTER", {"region": "US"}, "cluster_minutes"),
+    ("RETRAIN", {}, "retrain_hours"),
 )
+
+
+def _interval(key: str, schedule: dict) -> timedelta:
+    value = float(schedule[key])
+    if key.endswith("_hours"):
+        return timedelta(hours=value)
+    return timedelta(minutes=value)
 
 _thread: threading.Thread | None = None
 
@@ -77,9 +88,9 @@ def tick(db: Session, now: datetime | None = None,
     schedule = schedule or load_schedule()
     enqueued: list[str] = []
     for job_type, payload, interval_key in TASKS:
-        minutes = float(schedule[interval_key])
+        interval = _interval(interval_key, schedule)
         last = _last_run(db, job_type)
-        if last is not None and (now - last) < timedelta(minutes=minutes):
+        if last is not None and (now - last) < interval:
             continue
         q.enqueue(db, job_type, dict(payload), priority=30)
         enqueued.append(job_type)

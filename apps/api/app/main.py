@@ -10,6 +10,7 @@ from app.api.routes.health import router as health_router
 from app.api.routes.jobs import router as jobs_router
 from app.api.routes.moments import router as moments_router
 from app.api.routes.overlays import router as overlays_router
+from app.api.routes.ranker import router as ranker_router
 from app.api.routes.renders import router as renders_router
 from app.api.routes.rights import router as rights_router
 from app.api.routes.scenes import router as scenes_router
@@ -44,6 +45,7 @@ def create_app() -> FastAPI:
     app.include_router(jobs_router, prefix="/api/v1")
     app.include_router(moments_router, prefix="/api/v1")
     app.include_router(overlays_router, prefix="/api/v1")
+    app.include_router(ranker_router, prefix="/api/v1")
     app.include_router(renders_router, prefix="/api/v1")
     app.include_router(scenes_router, prefix="/api/v1")
     app.include_router(rights_router, prefix="/api/v1")
