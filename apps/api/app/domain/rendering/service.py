@@ -224,6 +224,25 @@ def render_episode(
         for seg in segs:
             if seg.moment_id is None:
                 dur = round(float(seg.duration), 3)
+                card_text = seg.context_text or ""
+                if card_text.startswith("overlay:"):
+                    # Phase 9 graphic card (chart / timeline strip / source card)
+                    asset = Path(card_text.split("overlay:", 1)[1])
+                    if not asset.is_file():
+                        raise RenderError(f"overlay asset missing: {asset}")
+                    args += ["-loop", "1", "-framerate", str(FPS),
+                             "-t", str(dur), "-i", str(asset)]
+                    args += ["-f", "lavfi", "-i",
+                             f"aevalsrc=0:d={dur}:s=48000"]
+                    caption_words.append({
+                        "start": offset, "end": offset + dur,
+                        "word": " " + (seg.commentary_text or
+                                       "Original graphic"),
+                        "card": True,
+                    })
+                    takes.append(dur)
+                    offset += dur
+                    continue
                 args += ["-f", "lavfi", "-i",
                          f"color=c={CARD_COLOR}:s={W}x{H}:r={FPS}:d={dur}",
                          "-f", "lavfi", "-i",
@@ -265,7 +284,12 @@ def render_episode(
         in_cursor = 0
         for idx, seg in enumerate(segs):
             if seg.moment_id is None:
-                filters.append(f"[{in_cursor}:v]setsar=1,fps={FPS}[v{idx}]")
+                # cards (colour + Phase 9 graphics) must match the clip
+                # streams pixel-for-pixel or concat fails mid-graph
+                filters.append(
+                    f"[{in_cursor}:v]scale={W}:{H}:force_original_aspect_"
+                    f"ratio=increase,crop={W}:{H},setsar=1,fps={FPS},"
+                    f"format=yuv420p[v{idx}]")
                 filters.append(f"[{in_cursor + 1}:a]aresample=48000,"
                                f"aformat=channel_layouts=stereo[a{idx}]")
                 in_cursor += 2
@@ -282,6 +306,10 @@ def render_episode(
         filters.append("[acat]loudnorm=I=-16:TP=-1.5:LRA=11[aloud]")
 
         events = words_to_events(caption_words)
+        # Phase 9 annotations are lower-third text over clips, burned in
+        # through the same subtitle channel (no drawtext font escaping)
+        events.extend(_annotation_events(base, episode_id, preset))
+        events.sort(key=lambda e: e["start"])
         ass_text = build_ass(events, str(preset["caption_style"]))
         ass_path.write_text(ass_text, encoding="utf-8")
         v_final = "[vcat]"
@@ -324,6 +352,34 @@ def render_episode(
         raise fail(str(e)) from e
     except Exception as e:
         raise fail(f"render failed: {e}") from e
+
+
+def _annotation_events(base: Path, episode_id: int, preset: dict) -> list[dict]:
+    """Lower-third annotation events from the overlay pack (D11)."""
+    import json as _json
+
+    path = base / "overlays" / f"{episode_id}.json"
+    if not path.is_file():
+        return []
+    try:
+        pack = _json.loads(path.read_text(encoding="utf-8"))
+    except ValueError:
+        return []
+    events = []
+    for item in pack.get("items", []):
+        if item.get("kind") != "annotation":
+            continue
+        text = (item.get("text") or "").strip()
+        if not text:
+            continue
+        events.append({
+            "start": float(item.get("timeline_at", 0.0)),
+            "end": float(item.get("timeline_at", 0.0))
+                   + float(item.get("duration", 5.0)),
+            "text": text,
+        })
+    log.info("annotations_queued", episode_id=episode_id, n=len(events))
+    return events
 
 
 def _segment_media(db: Session, moment_id: int) -> Path:

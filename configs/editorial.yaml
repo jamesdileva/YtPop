@@ -24,3 +24,18 @@ templates:
     outro_card_seconds: 2.0
     default_transition: "cut"
     caption_style: "bold"
+# Phase 9 / D11 originality overlays (rendered into the episode)
+overlays:
+  enabled: true
+  context_seconds: 4.0
+  commentary_seconds: 4.0
+  comparison_seconds: 6.0
+  source_seconds: 5.0
+  chart_seconds: 6.0
+  timeline_seconds: 5.0
+  annotation_seconds: 5.0
+  # charts/timeline graphics are generated with Pillow (no matplotlib)
+  charts: true
+  timeline_graphic: true
+  # burn lower-third annotations over clips (drawtext on the clip layer)
+  burn_annotations: true

@@ -18,8 +18,6 @@
 - [x] Live discovery E2E with a YouTube key (the adapter itself is covered by mocks).
 - [ ] NSIS installer smoke test (the `--dir` win-unpacked build is verified).
 - [x] Scene detection
-- [ ] Phase 9 Originality layer: AI context, narration, commentary,
-      comparisons, visual annotations, charts, timeline graphics, source cards.
 - [ ] Shrink the packaged build (~720MB, dominated by the local shared ffmpeg).
 - [ ] Retraining cadence for the learned ranker (D4 trains on demand).
 ---
@@ -859,23 +857,23 @@ Move from compilation toward genuine editorial production.
 
 
 
-- [ ] AI-generated context
+- [x] AI-generated context
 
-- [ ] Original narration
+- [x] Original narration
 
-- [ ] Commentary
+- [x] Commentary
 
-- [ ] Comparison segments
+- [x] Comparison segments
 
 - [x] Topic summaries
 
-- [ ] Visual annotations
+- [x] Visual annotations
 
-- [ ] Charts
+- [x] Charts
 
-- [ ] Timeline graphics
+- [x] Timeline graphics
 
-- [ ] Source cards
+- [x] Source cards
 
 
 

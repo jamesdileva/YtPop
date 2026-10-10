@@ -193,6 +193,32 @@ boundary. Note the scene metric is luma-based: cuts between similar
 brightness scenes can score below the threshold, so lower `threshold` on
 media with many colour-only changes.
 
+## 9b. Originality overlay pack (Phase 9 / D11)
+
+Turns an episode into editorial production instead of a concatenation:
+context and commentary cards, source cards (channel + title), a comparison
+card per multi-clip cluster, an original **chart** of where the views came
+from, an original **timeline graphic**, lower-third **annotations** burned
+over the clips, and a **narration script** with timing.
+
+```powershell
+POST /api/v1/episodes/{id}/overlays   # {"plan": <plan JSON>}
+GET  /api/v1/episodes/{id}/overlays
+```
+
+Re-running replaces the previous overlay cards (they are marked
+`transition_type=overlay`), so rebuilding is idempotent. Graphics are
+Pillow-rendered into `data/overlays/`; the pack itself is
+`data/overlays/{episode_id}.json`. Cards pointing at graphics use
+`context_text = "overlay:<absolute path>"`.
+
+Config in `configs/editorial.yaml` (`overlays:`): per-kind durations,
+`charts`, `timeline_graphic`, `burn_annotations`.
+
+Known limits: narration is a **script** (text + timing), not spoken audio —
+no TTS stage yet. The scene metric and luma caveats from section 9 apply to
+annotations' placement.
+
 ## 10. Train the clip ranker (D4)
 
 Review decisions in the app produce labelled feature vectors

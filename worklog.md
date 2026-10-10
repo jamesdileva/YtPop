@@ -838,3 +838,44 @@
 
 ### Commit
 - `D10: feat(scenes): ffmpeg scene detection + clip boundary penalty`
+
+## D11 - 2026-10-09 - phase 9 originality overlay pack (done)
+
+### Planned
+- The 8 remaining Phase 9 boxes as one coherent slice: original overlay
+  content that is actually rendered into the episode, not stubs.
+
+### Did
+- [x] `app/services/graphics_service.py` - Pillow bar chart + proportional
+  timeline strip (deterministic, no matplotlib, no fonts beyond default)
+- [x] `app/domain/editorial/overlays.py` - overlay pack with all 8 kinds:
+  context, commentary, source, comparison, chart, timeline, annotation and a
+  narration script (text + timing); cards are appended as real segments
+  (idempotent via transition_type=overlay) and persisted to
+  `data/overlays/{id}.json` + media_assets rows
+- [x] `app/domain/rendering/service.py` - image cards (`-loop 1` +
+  `aevalsrc`) render with asset-missing errors, and card inputs are
+  normalized to `format=yuv420p` (concatenation used to die on rgb24 image
+  inputs); annotations burn in through the subtitle channel
+- [x] Routes `POST/GET /episodes/{id}/overlays` (plan JSON accepted, else the
+  stored storyboard)
+- [x] `configs/editorial.yaml` `overlays:` durations + toggles
+- [x] `tests/editorial/test_overlays.py` (7 tests: graphics determinism, all
+  kinds, idempotency, render burn-in, missing-asset failure, route commit)
+- [x] runbook section 9b; all 8 roadmap Phase 9 boxes ticked
+
+### Verified
+- `pytest -q` -> 176 passed; `vitest` -> 40 passed; `playwright` -> 4 passed
+- Live: 2 clips (24.9s) -> overlay pack (chart PNG 21.9KB, 7 items, 4 narration
+  lines) -> render QA ok at 52.0s, i.e. the overlay cards extended the
+  episode by 27s and the chart card is in the output
+- Two bugs the live run caught (both fixed with tests): the overlays route
+  never committed (cards silently missing), and the `model` field was being
+  abused to carry plan JSON -> now a proper `plan` field
+
+### Known limits (documented, not hidden)
+- Narration is a script, not spoken audio: no TTS stage exists yet.
+- Chart/timeline are static Pillow art, not interactive/HTML.
+
+### Commit
+- `D11: feat(editorial): originality overlay pack + original graphics`
