@@ -1,3 +1,4 @@
+import { config as loadEnv } from "dotenv";
 import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
@@ -6,8 +7,10 @@ import path from "node:path";
 import { afterAll, beforeAll, expect, test } from "@playwright/test";
 
 const REPO = path.resolve(__dirname, "..", "..", "..");
-const DESKTOP = path.join(REPO, "apps", "desktop");
-const E2E_DIR = path.join(DESKTOP, "e2e");
+
+// The live specs need a real YouTube key; repo .env is the source of truth
+// (an actual environment variable still wins).
+loadEnv({ path: path.join(REPO, ".env") });
 const YT_KEY = process.env.YTPOP_YOUTUBE_API_KEY;
 
 let apiProc: ReturnType<typeof spawn> | null = null;
@@ -56,27 +59,38 @@ beforeAll(async () => {
   const runDir = fs.mkdtempSync(path.join(os.tmpdir(), "ytpop-live-"));
   dbPath = path.join(runDir, "mega_clipper.db");
 
+  const apiEnv = {
+    ...process.env,
+    YTPOP_DB_PATH: dbPath,
+    YTPOP_YOUTUBE_API_KEY: YT_KEY,
+    YTPOP_ROOT: REPO,
+  };
+
+  // fresh temp DB: give it the real schema via Alembic (source of truth)
+  execFileSync("python", ["-m", "alembic", "upgrade", "head"], {
+    cwd: path.join(REPO, "apps", "api"),
+    env: apiEnv,
+    stdio: "inherit",
+  });
+
   apiProc = spawn(
     "python",
     ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1",
      "--port", String(apiPort)],
-    {
-      cwd: path.join(REPO, "apps", "api"),
-      env: {
-        ...process.env,
-        YTPOP_DB_PATH: dbPath,
-        YTPOP_YOUTUBE_API_KEY: YT_KEY,
-        YTPOP_ROOT: REPO,
-      },
-      stdio: "ignore",
-    },
+    { cwd: path.join(REPO, "apps", "api"), env: apiEnv, stdio: "ignore" },
   );
   expect(await waitForHealth(60000), "API did not become healthy").toBe(true);
 });
 
 afterAll(() => {
   apiProc?.kill();
-  if (dbPath) fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
+  if (dbPath) {
+    try {
+      fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
+    } catch {
+      /* the killed backend may still hold the sqlite file */
+    }
+  }
 });
 
 test("live discovery seeds real YouTube data (1 quota unit)", async () => {

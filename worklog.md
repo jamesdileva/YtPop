@@ -776,3 +776,30 @@
 
 ### Commit
 - `D8: docs: reconcile roadmap + architecture with shipped state`
+
+## D9 - 2026-10-09 - live discovery e2e with a real youtube key (done)
+
+### Planned
+- Add the key to `.env`, make the live spec read it, and run the real
+  discovery end to end (1 quota unit).
+
+### Did
+- [x] `e2e/live-discovery.spec.ts` loads the repo `.env` itself so the live
+  spec sees `YTPOP_YOUTUBE_API_KEY` (an actual env var still wins)
+- [x] The spec migrates its temp DB with Alembic before starting the API
+  (previously it ran against a schema-less DB -> 500 on the first query)
+- [x] `afterAll` cleanup tolerates a still-locked sqlite file
+- [x] playwright.config also dotenv-loads for consistency; `dotenv` declared
+- [x] Roadmap: live-discovery box ticked, gates line now 4/4, stale
+  "skipped test" note removed
+
+### Verified
+- Direct probe with the key: real mostPopular data (3 items, 1 quota unit)
+- `npx playwright test e2e/live-discovery.spec.ts` -> 1 passed
+- Full suites: `pytest -q` 159 passed, `vitest` 40 passed,
+  `npx playwright test` -> 4 passed (golden dev, golden packaged, no-PATH
+  packaged, live discovery)
+- `.env` remains gitignored; key never printed or committed
+
+### Commit
+- `D9: feat(e2e): live discovery with real youtube key`
