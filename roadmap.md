@@ -18,7 +18,7 @@
 - [x] Live discovery E2E with a real YouTube key.
 - [x] Scene detection.
 - [x] Phase 9 originality overlay pack (narration is script-only).
-- [ ] Shrink the packaged build (~720MB, dominated by the local shared ffmpeg).
+- [x] Shrink the packaged build (718MB -> 432MB frozen / ~700MB packaged).
 - [ ] Retraining cadence for the learned ranker (D4 trains on demand).
 - [ ] NSIS installer smoke test (the `--dir` win-unpacked build is verified).
 

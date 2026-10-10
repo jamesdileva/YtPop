@@ -879,3 +879,39 @@
 
 ### Commit
 - `D11: feat(editorial): originality overlay pack + original graphics`
+
+## D12 - 2026-10-09 - trim packaged build 718MB -> 432MB (done)
+
+### Planned
+- The last size item: cut the packaged freeze without losing functionality.
+- Order vs ranker cadence: cadence adds no deps (trainer is pure Python),
+  so it cannot change the trim; trim first was correct.
+
+### Did
+- [x] `api_backend.spec` bundles only what our pipeline links (ffmpeg/ffprobe +
+  avcodec/avformat/avfilter/avutil/swresample/swscale/avdevice) - drops
+  ffplay.exe (-17MB); excludes onnxruntime/pyarrow/scipy/av/... (-136MB)
+- [x] `whisper_service.load_audio` decodes the 16kHz mono wav with stdlib
+  `wave`+numpy and feeds the array to faster-whisper, so PyAV (~60MB) is not
+  needed at runtime
+- [x] `_ensure_av_shim()` stands in `av` when PyAV is absent (faster-whisper
+  imports it at module load) and raises loudly if the unused decoder path is
+  ever hit
+- [x] Tests: `tests/transcription/test_audio_decode.py` (decoder semantics +
+  array-decode call + shim install + real-PyAV passthrough)
+- [x] runbook: real numbers + the ffmpeg-build dead end (static = 161MB per
+  exe, shared = ~210MB regardless of version, so swapping does not help)
+
+### Verified
+- Frozen backend alone (PATH = System32 only): health 200, analyze, real
+  transcribe (2 segments, 3s, ctranslate2 inside the freeze), find-moments
+  via Ollama embeddings
+- `pytest -q` -> 182 passed; `vitest` -> 40 passed; `playwright` -> 4 passed
+  (incl. "needs nothing on PATH" against the rebuilt package)
+- Size: frozen backend 717.7MB -> 432MB (-40%); win-unpacked ~700MB total,
+  of which ~258MB is Electron itself
+- Dead end documented: downloaded static (161MB/exe) and stable-shared
+  (210MB) ffmpeg builds - both are worse than the local build, so no swap
+
+### Commit
+- `D12: chore(packaging): trim freeze 718MB to 432MB`

@@ -91,11 +91,16 @@ npm run dist --workspace=apps/desktop    # release\win-unpacked\YtPop.exe
   exe and only falls back to `python -m uvicorn` when running from a
   checkout. A regression test (`e2e/packaged.spec.ts` "needs nothing on
   PATH") launches the exe with `PATH` stripped to System32.
-- Size note: the freeze is ~720MB because the ffmpeg build on this machine is
-  the full shared master build. Swapping it for a slimmer static ffmpeg would
-  cut most of that; not done yet.
+- Size: the frozen backend is **~432MB** (was ~718MB before the D12 trim; the
+  full win-unpacked app is ~700MB, the rest being Electron itself). Removed:
+  `ffplay.exe`, unused PyInstaller payloads (`onnxruntime`, `pyarrow`,
+  `scipy`), and PyAV (`~60MB`) — audio is now decoded with the stdlib
+  (`wave`+numpy) because ingestion already writes a 16kHz mono wav. `av` is
+  stubbed by `whisper_service` only if the unused file-decoder path is hit.
+  Swapping ffmpeg builds does **not** help: static builds are ~161MB per
+  executable and shared builds are ~210MB regardless of version.
 - Torch/sentence-transformers are deliberately excluded from the freeze
-  (they only back MiniLM embeddings). Without them the backend logs a warning
+  (they only backed MiniLM embeddings). Without them the backend logs a warning
   and falls back to Ollama embeddings (`nomic-embed-text`), which needs Ollama
   running. If neither is available, `find-moments` and `cluster` fail with a
   clear "no embedding backend" error instead of silently scoring badly; pass

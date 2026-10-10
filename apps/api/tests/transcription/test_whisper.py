@@ -27,6 +27,18 @@ def synth_speech(wav: Path) -> bool:
                        check=True, timeout=120, capture_output=True)
     except Exception:
         return False
+    if not (wav.is_file() and wav.stat().st_size > 0):
+        return False
+    # SAPI writes 22050Hz; the service requires the 16kHz wav that ingestion
+    # produces, so resample here the same way extract_audio() does.
+    try:
+        from app.services import ffmpeg_service as ff
+
+        resampled = wav.with_suffix(".16k.wav")
+        ff.extract_audio(wav, resampled)
+        resampled.replace(wav)
+    except Exception:
+        return False
     return wav.is_file() and wav.stat().st_size > 0
 
 

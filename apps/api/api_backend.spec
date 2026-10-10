@@ -27,6 +27,12 @@ EXCLUDES = [
     "pytest", "pytest.*",
     "tkinter", "tkinter.*",
     "PyInstaller", "PyInstaller.*",
+    # pulled in transitively by the excluded model stack; whisper/ctranslate2
+    # and our services do not need them (verified in tests/transcription)
+    "onnxruntime", "onnxruntime.*",
+    "pyarrow", "pyarrow.*",
+    "scipy", "scipy.*",
+    "av", "av.*",
 ]
 
 HIDDEN = [
@@ -92,10 +98,16 @@ coll = COLLECT(
 bundle_dir = os.path.join("dist-frozen", "api-backend")
 os.makedirs(bundle_dir, exist_ok=True)
 
-# Ship the whole ffmpeg tool folder next to the frozen backend so the
-# packaged app needs nothing on PATH. Shared ffmpeg builds need their
-# sibling DLLs, so copy every file from the directory of the resolved
-# binary (not just the .exe).
+# Ship the ffmpeg tool folder next to the frozen backend so the packaged app
+# needs nothing on PATH. Only what our pipeline actually uses: the CLI
+# executables plus the shared libs they link (codecs, filters, formats,
+# resampling, scaling). Deliberately skipped: ffplay.exe (no playback need),
+# avdevice (no capture devices), and anything we don't link.
+NEEDED_PREFIXES = (
+    "ffmpeg.exe", "ffprobe.exe",
+    "avcodec-", "avformat-", "avfilter-", "avutil-",
+    "swresample-", "swscale-", "avdevice-",  # avdevice: the CLI links it
+)
 src_dir = shutil.which("ffmpeg")
 if src_dir:
     src_dir = os.path.dirname(src_dir)
@@ -104,7 +116,7 @@ if src_dir:
         source = os.path.join(src_dir, name)
         if not os.path.isfile(source):
             continue
-        if not name.lower().endswith((".exe", ".dll")):
+        if not name.startswith(NEEDED_PREFIXES):
             continue
         dest = os.path.join(bundle_dir, name)
         try:
