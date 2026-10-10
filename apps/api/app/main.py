@@ -11,6 +11,7 @@ from app.api.routes.jobs import router as jobs_router
 from app.api.routes.moments import router as moments_router
 from app.api.routes.renders import router as renders_router
 from app.api.routes.rights import router as rights_router
+from app.api.routes.scenes import router as scenes_router
 from app.api.routes.transcription import router as transcription_router
 from app.api.routes.sources import router as sources_router
 from app.api.routes.trends import router as trends_router
@@ -42,6 +43,7 @@ def create_app() -> FastAPI:
     app.include_router(jobs_router, prefix="/api/v1")
     app.include_router(moments_router, prefix="/api/v1")
     app.include_router(renders_router, prefix="/api/v1")
+    app.include_router(scenes_router, prefix="/api/v1")
     app.include_router(rights_router, prefix="/api/v1")
     app.include_router(analysis_router, prefix="/api/v1")
     app.include_router(editorial_router, prefix="/api/v1")

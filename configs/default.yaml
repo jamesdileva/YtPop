@@ -45,6 +45,15 @@ trends:
   recency_half_life_hours: 24.0
   # log compression: cap is the midpoint (50), 100 only at ~cap^2 magnitude
   log_scale: true
+scenes:
+  enabled: true
+  threshold: 0.35
+  max_scenes: 300
+  # D10 clipping integration: penalty per hard cut inside a candidate window
+  penalty_weight: 6.0
+  # snap window edges onto a nearby hard cut (crisper boundaries)
+  snap: false
+  snap_tolerance_s: 0.6
 scheduler:
   score_refresh_minutes: 15
   drain_minutes: 30

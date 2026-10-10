@@ -17,7 +17,7 @@
 
 - [x] Live discovery E2E with a YouTube key (the adapter itself is covered by mocks).
 - [ ] NSIS installer smoke test (the `--dir` win-unpacked build is verified).
-- [ ] Scene detection (S4 scope item, never built).
+- [x] Scene detection
 - [ ] Phase 9 Originality layer: AI context, narration, commentary,
       comparisons, visual annotations, charts, timeline graphics, source cards.
 - [ ] Shrink the packaged build (~720MB, dominated by the local shared ffmpeg).
@@ -445,7 +445,7 @@ Understand individual videos.
 
 - [x] Whisper transcription
 
-- [ ] Scene detection
+- [x] Scene detection
 
 - [x] Transcript indexing
 

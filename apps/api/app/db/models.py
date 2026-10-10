@@ -224,9 +224,20 @@ class Job(Base):
     )
 
 
+class Scene(Base):
+    """Detected hard cuts for a source (D10)."""
+
+    __tablename__ = "scenes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    source_id: Mapped[int] = mapped_column(ForeignKey("sources.id"), index=True)
+    index: Mapped[int] = mapped_column(Integer, default=0)
+    start_time: Mapped[float] = mapped_column(Float)
+    score: Mapped[float] = mapped_column(Float, default=0.0)
+
+
 class SourceSnapshot(Base):
     """One metadata observation per fetch — enables velocity calculations (S3)."""
-
     __tablename__ = "source_snapshots"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

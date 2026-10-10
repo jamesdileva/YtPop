@@ -354,13 +354,61 @@ def _score_finalists_visual(db: Session, source_id: int, scored: list[dict],
     log.info("vision_scored", n=len(finalists))
 
 
+# --- scene-aware boundaries (D10) ----------------------------------------------
+
+def cuts_inside(cuts: list[float], start: float, end: float) -> int:
+    """Hard cuts strictly inside (start, end) - a window spanning many
+    distinct shots is usually a worse clip than a continuous one."""
+    return sum(1 for c in cuts if start < c < end)
+
+
+def snap_to_cuts(start: float, end: float, cuts: list[float],
+                 tolerance: float) -> tuple[float, float]:
+    """Move an edge onto a nearby hard cut so the clip boundary is crisp."""
+    best_start, best_end = start, end
+    best_d = tolerance
+    for c in cuts:
+        if abs(c - start) <= best_d:
+            best_d, best_start = abs(c - start), c
+    best_d = tolerance
+    for c in cuts:
+        if abs(c - end) <= best_d:
+            best_d, best_end = abs(c - end), c
+    return (round(best_start, 3), round(best_end, 3))
+
+
+def apply_scene_scoring(scored: list[dict], cuts: list[float],
+                        penalty_weight: float, snap: bool = False,
+                        snap_tolerance: float = 0.6) -> None:
+    """Penalise windows that straddle hard cuts; optionally snap edges."""
+    if not cuts:
+        return
+    for cand in scored:
+        start, end = cand["start"], cand["end"]
+        if snap:
+            start, end = snap_to_cuts(start, end, cuts, snap_tolerance)
+            if end <= start:
+                continue
+            cand["start"], cand["end"] = start, end
+        n = cuts_inside(cuts, start, end)
+        if n and penalty_weight:
+            cand["final_score"] = round(
+                cand["final_score"] - penalty_weight * n, 3)
+
+
 # --- pipeline ------------------------------------------------------------------
+
+def _scene_cuts(db: Session, source_id: int) -> list[float]:
+    from app.domain.analysis import scenes as scene_domain
+
+    return scene_domain.get_scenes(db, source_id)
+
 
 def find_moments(
     db: Session, source_id: int, top_k: int | None = None,
     weights_cfg: dict | None = None, embed_fn=None,
     use_embeddings: bool = True, llm=None,
-    roots: list[Path] | None = None,
+    roots: list[Path] | None = None, cuts: list[float] | None = None,
 ) -> dict:
     source = db.get(models.Source, source_id)
     if source is None:
@@ -447,6 +495,17 @@ def find_moments(
                        reverse=True)[:finalist_n]
     _score_finalists_llm(scored, finalists, texts, llm, cfg)
     _score_finalists_visual(db, source_id, scored, finalists, cfg, roots)
+
+    # D10: scene-aware boundaries (penalise windows straddling hard cuts)
+    scenes_cfg = cfg.get("scenes") or {}
+    if scenes_cfg.get("enabled", True):
+        cuts = cuts if cuts is not None else _scene_cuts(db, source_id)
+        apply_scene_scoring(
+            scored, cuts,
+            penalty_weight=float(scenes_cfg.get("penalty_weight", 6.0)),
+            snap=bool(scenes_cfg.get("snap", False)),
+            snap_tolerance=float(scenes_cfg.get("snap_tolerance_s", 0.6)),
+        )
 
     order = select_top(
         scored, vectors, texts, min(top_k, len(scored)), cfg["weights"],

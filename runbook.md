@@ -161,6 +161,38 @@ If you still time out, wait for the other project to finish or set
 `renders/`, `database/mega_clipper.db`. Every artifact has a DB row.
 Logs carry `[episode/job/source/stage]` correlation â€” grep those first.
 
+## 9. Scene detection (D10)
+
+Cheap and dependency-free: the bundled ffmpeg computes per-frame scene
+scores (`select=scene`), and we parse `metadata=print` output. No
+PySceneDetect and no model weights, so the packaged freeze stays lean.
+
+```powershell
+POST /api/v1/sources/{id}/detect-scenes   # {"media_path": "raw/x.mp4"}
+GET  /api/v1/sources/{id}/scenes
+```
+
+Artifact: `data/scenes/{source_id}.json`; rows live in the `scenes` table.
+
+Config in `configs/default.yaml`:
+
+```yaml
+scenes:
+  enabled: true
+  threshold: 0.35      # minimum score to count as a hard cut
+  max_scenes: 300
+  penalty_weight: 6.0  # score penalty per cut inside a candidate window
+  snap: false          # snap window edges onto a nearby cut
+  snap_tolerance_s: 0.6
+```
+
+Why it matters for clipping: a window that straddles a hard cut is usually a
+worse clip than a continuous one, so candidates spanning cuts are penalised,
+and with `snap: true` the window edge moves onto the cut for a crisp
+boundary. Note the scene metric is luma-based: cuts between similar
+brightness scenes can score below the threshold, so lower `threshold` on
+media with many colour-only changes.
+
 ## 10. Train the clip ranker (D4)
 
 Review decisions in the app produce labelled feature vectors

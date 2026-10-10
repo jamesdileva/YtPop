@@ -803,3 +803,38 @@
 
 ### Commit
 - `D9: feat(e2e): live discovery with real youtube key`
+
+## D10 - 2026-10-09 - scene detection (done)
+
+### Planned
+- S4's unchecked "Scene detection", cheap-first: real hard cuts, persisted
+  and inspectable, and used by the clip boundary engine.
+
+### Did
+- [x] `app/services/scene_service.py` - ffmpeg `select=scene,metadata=print`
+  parser (no PySceneDetect, no torch -> keeps the freeze lean)
+- [x] `Scene` model + migration `decd4fcade07`; `data/scenes/{id}.json`
+  artifact; `app/domain/analysis/scenes.py` (idempotent replace)
+- [x] Routes `POST /sources/{id}/detect-scenes`, `GET /sources/{id}/scenes`
+- [x] Clipping integration: `cuts_inside`, `snap_to_cuts`,
+  `apply_scene_scoring`; `find_moments(..., cuts=[...])` + DB lookup
+- [x] `configs/default.yaml` `scenes:` (threshold, max_scenes, penalty_weight,
+  snap, snap_tolerance_s)
+- [x] `tests/test_scenes.py` (10 tests incl. route commit + round-trip)
+- [x] runbook section 9; roadmap "Scene detection" ticked
+
+### Verified
+- `pytest -q` -> 169 passed; `vitest` -> 40 passed; `playwright` -> 4 passed
+- Live: 4-shot fixture -> 3 cuts detected at 5.0/10.0/15.0s, persisted
+  (GET confirms), and the candidate window spanning two cuts dropped exactly
+  67.29 -> 55.29 (= 2 cuts x 6.0 weight); ranking changed accordingly
+- Two bugs found by the live run and fixed: the detect route never committed
+  (nothing persisted), and the fixture needed high-contrast cuts because the
+  ffmpeg scene metric is luma-based (colour-only changes scored 0.13-0.19)
+
+### Notes
+- Scene coverage is quantified honestly in the runbook: colour-only cuts may
+  sit below the threshold; lower `threshold` for such media.
+
+### Commit
+- `D10: feat(scenes): ffmpeg scene detection + clip boundary penalty`
