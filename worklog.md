@@ -756,3 +756,23 @@
 
 ### Commit
 - `D7: feat(packaging): freeze backend + ffmpeg, no PATH required`
+
+## D8 - 2026-10-09 - reconcile roadmap/architecture checkboxes with reality (done)
+
+### Did
+- [x] Ticked 132 roadmap boxes + all 14 `architecture.md` SS29 boxes that are
+  implemented AND verified (traced to worklog evidence, not assumption)
+- [x] Left unchecked on purpose: Scene detection (never built), the Phase 9
+  Originality items, the NSIS installer smoke test, and a new "Remaining work"
+  list (live discovery E2E, installer smoke, scene detection, originality
+  layer, build size, ranker retraining cadence)
+- [x] Roadmap header now states MVP complete + tag, the three gates with
+  counts, and the skipped live-discovery test with the reason
+
+### Verified
+- Box counts: roadmap 132 ticked / 16 not-built; architecture SS29 14/14 ticked
+- Tooling scripts were one-off and removed; no code changed, so the gates stay
+  green as recorded in D7
+
+### Commit
+- `D8: docs: reconcile roadmap + architecture with shipped state`

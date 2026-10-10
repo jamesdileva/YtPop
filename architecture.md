@@ -1213,17 +1213,17 @@ Do not introduce these until the MVP demonstrates the need.
 
 The first usable version is complete when:
 
-- [ ] App launches
-- [ ] API starts automatically
-- [ ] YouTube discovery works
-- [ ] Sources are persisted
-- [ ] Trends can be viewed
-- [ ] Source can be transcribed
-- [ ] Candidate moments are generated
-- [ ] Moments can be previewed
-- [ ] User can approve moments
-- [ ] Approved moments can form an episode
-- [ ] Episode can render
-- [ ] Render can be played in-app
-- [ ] Failed jobs can be retried
-- [ ] Every stage leaves inspectable artifacts
+- [x] App launches
+- [x] API starts automatically
+- [x] YouTube discovery works
+- [x] Sources are persisted
+- [x] Trends can be viewed
+- [x] Source can be transcribed
+- [x] Candidate moments are generated
+- [x] Moments can be previewed
+- [x] User can approve moments
+- [x] Approved moments can form an episode
+- [x] Episode can render
+- [x] Render can be played in-app
+- [x] Failed jobs can be retried
+- [x] Every stage leaves inspectable artifacts
