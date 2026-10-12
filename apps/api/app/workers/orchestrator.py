@@ -13,6 +13,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.db import models
+from app.domain.discovery import clustering
 from app.domain.rights import service as rights_svc
 from app.workers import handlers, queue as q
 
@@ -66,7 +67,21 @@ def run_daily_episode(db: Session, ctx: handlers.Ctx | None = None,
     elif trends:
         picked = trends[0]
     else:
-        raise PipelineError("no trends — discover sources first")
+        # a trend is inherently multi-source; say why, not just "discover"
+        total = db.query(models.Source).count()
+        min_sources = int(clustering.load_trend_config().get("min_sources", 2))
+        if total < min_sources:
+            raise PipelineError(
+                f"no trend: only {total} source(s) in the library and a topic "
+                f"needs at least {min_sources} (topics are multi-video by "
+                f"design). Run discovery on enough sources first, or lower "
+                f"`min_sources` in configs/default.yaml.")
+        raise PipelineError(
+            f"no trend: {total} sources found but they did not cluster "
+            f"(similarity threshold "
+            f"{clustering.load_trend_config().get('similarity_threshold')}). "
+            f"Discover more sources, or lower the threshold in "
+            f"configs/default.yaml.")
     topic = picked["topic"]
     member_ids = sorted(
         r.source_id for r in db.query(models.TrendSource)

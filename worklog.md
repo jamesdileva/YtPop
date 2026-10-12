@@ -983,3 +983,32 @@
 
 ### Commit
 - `D14: feat(ui): dark studio design system for the shell`
+
+## Fix - 2026-10-11 - pipeline 400 on single-source library (found via user e2e)
+
+### Found
+- User ran "Generate today''s episode" in the packaged app on the golden
+  fixture (1 source) and got a bare 400.
+- Reproduced: `cluster_trends` needs `min_sources: 2` to form a topic, so a
+  1-source library yields zero trends and the orchestrator raised the generic
+  "no trends - discover sources first", which was misleading here.
+
+### Did
+- [x] `app/workers/orchestrator.py` - the no-trend error now distinguishes
+  "only N source(s), need M" from "sources exist but did not cluster
+  (threshold X)", each with the exact config knob to turn
+
+### Verified
+- `pytest tests/test_pipeline.py` -> 6 passed (typo fixed along the way)
+- Repro now reports: "no trend: only 1 source(s) in the library and a topic
+  needs at least 2 (topics are multi-video by design)..."
+- Full user e2e (2 SAPI-narrated test videos): analyze -> 3 segments + 3/5
+  candidates each -> approve -> pipeline (refresh/cluster/generate/render ALL
+  COMPLETED in ~100s) -> episode "The Secret Code: Double Your Score!"
+  43.74s DRAFT -> publish correctly blocked by demo mode. E2E PASS.
+- Workspace fully cleaned afterwards (DB tables zeroed, stale raw/renders/
+  captions/media/storyboards/transcripts from all debug sessions removed);
+  `git status` shows only the orchestrator fix
+
+### Commit
+- `fix(pipeline): accurate no-trend error for small libraries`
