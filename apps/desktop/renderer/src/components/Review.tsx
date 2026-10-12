@@ -9,16 +9,12 @@ import {
 function Bar({ label, value }: { label: string; value: number }) {
   const pct = Math.max(0, Math.min(100, value));
   return (
-    <div>
-      <span>
-        {label} {value.toFixed(1)}
+    <div className="score-row">
+      <span className="name">{label}</span>
+      <span className="score-track" data-testid={`bar-${label}`}>
+        <span className="score-fill" style={{ width: `${pct}%` }} />
       </span>
-      <div
-        data-testid={`bar-${label}`}
-        style={{ background: "#ddd", width: 160 }}
-      >
-        <div style={{ background: "#46c", width: `${pct}%`, height: 8 }} />
-      </div>
+      <span className="value">{value.toFixed(1)}</span>
     </div>
   );
 }
@@ -94,11 +90,16 @@ export default function Review() {
   }, [decide, nudge, data.length]);
 
   return (
-    <section>
-      <h2>Review</h2>
+    <section className="card">
+      <h2>Clip review</h2>
       <div>
         {(["CANDIDATE", "APPROVED", "REJECTED", "ALL"] as const).map((s) => (
-          <button key={s} data-testid={`filter-${s}`} onClick={() => setFilter(s)}>
+          <button
+            key={s}
+            data-testid={`filter-${s}`}
+            className={s === filter ? "primary" : undefined}
+            onClick={() => setFilter(s)}
+          >
             {s}
           </button>
         ))}
@@ -108,12 +109,13 @@ export default function Review() {
       ) : data.length === 0 ? (
         <p>No candidates — run find-moments.</p>
       ) : (
-        <div style={{ display: "flex", gap: 24 }}>
-          <ol data-testid="review-queue">
+        <div className="review-layout">
+          <ol data-testid="review-queue" className="list queue">
             {data.map((m, i) => (
               <li key={m.id}>
                 <button
                   data-testid={`queue-${m.id}`}
+                  className="queue-item"
                   onClick={() => {
                     setSelected(i);
                     setStart(String(m.start_time));
@@ -121,48 +123,54 @@ export default function Review() {
                   }}
                 >
                   #{m.id} {m.start_time.toFixed(1)}s [{m.final_score.toFixed(1)}]{" "}
-                  {m.status}
+                  <span className="badge">{m.status}</span>
                 </button>
               </li>
             ))}
           </ol>
           {current && (
-            <div data-testid="review-card">
+            <div data-testid="review-card" className="card">
               <video
                 data-testid="review-video"
                 src={previewUrl(current.id)}
                 controls
                 preload="none"
-                width={480}
+                className="source-player"
               />
-              <p data-testid="review-excerpt">{current.transcript_excerpt}</p>
-              <Bar label="Score" value={current.final_score} />
-              <Bar label="Hook" value={current.editorial_score} />
-              <Bar label="Emotion" value={current.emotion_score} />
-              <Bar label="Novelty" value={current.novelty_score} />
-              <Bar label="Context" value={current.semantic_score} />
+              <p data-testid="review-excerpt" className="excerpt">
+                {current.transcript_excerpt}
+              </p>
+              <div className="score-bars">
+                <Bar label="Score" value={current.final_score} />
+                <Bar label="Hook" value={current.editorial_score} />
+                <Bar label="Emotion" value={current.emotion_score} />
+                <Bar label="Novelty" value={current.novelty_score} />
+                <Bar label="Context" value={current.semantic_score} />
+              </div>
+              <div className="field">
+                <label htmlFor="trim-start">Start</label>
+                <input
+                  id="trim-start"
+                  data-testid="trim-start"
+                  value={start}
+                  onChange={(e) => setStart(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="trim-end">End</label>
+                <input
+                  id="trim-end"
+                  data-testid="trim-end"
+                  value={end}
+                  onChange={(e) => setEnd(e.target.value)}
+                />
+              </div>
               <div>
-                <label>
-                  Start{" "}
-                  <input
-                    data-testid="trim-start"
-                    value={start}
-                    onChange={(e) => setStart(e.target.value)}
-                  />
-                </label>
-                <label>
-                  End{" "}
-                  <input
-                    data-testid="trim-end"
-                    value={end}
-                    onChange={(e) => setEnd(e.target.value)}
-                  />
-                </label>
                 <button data-testid="btn-trim" onClick={() => void trim()}>
                   Trim
                 </button>
               </div>
-              <div>
+              <div className="field">
                 <input
                   data-testid="review-reason"
                   placeholder="reason (saved to feedback)"
@@ -172,11 +180,11 @@ export default function Review() {
                 <button data-testid="btn-reject" onClick={() => void decide("REJECTED")}>
                   Reject
                 </button>
-                <button data-testid="btn-approve" onClick={() => void decide("APPROVED")}>
+                <button className="primary" data-testid="btn-approve" onClick={() => void decide("APPROVED")}>
                   Approve
                 </button>
               </div>
-              <p>
+              <p className="muted">
                 {current.category} {current.is_best ? "★ best" : ""} {current.notes}
               </p>
             </div>

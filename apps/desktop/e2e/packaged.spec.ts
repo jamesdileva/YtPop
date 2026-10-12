@@ -55,7 +55,7 @@ test("packaged exe boots with real data (not a blank screen)", async () => {
   await expect(page.getByTestId("api-status")).toContainText("API: ok", {
     timeout: 45000,
   });
-  await expect(page.locator("h1")).toContainText("YtPop");
+  await expect(page.locator(".sidebar-brand")).toContainText("YtPop");
 
   // golden rows prove the packaged backend reads the seeded DB
   await expect(page.getByTestId("trends-topics")).toContainText(
@@ -63,7 +63,7 @@ test("packaged exe boots with real data (not a blank screen)", async () => {
   await expect(page.getByTestId("sources-list")).toContainText(
     "Golden Game Update Highlights");
   await expect(page.getByTestId("episode-list")).toContainText("Golden Episode");
-  await expect(page.getByTestId("ops-depth")).toContainText("done: 1");
+  await expect(page.getByTestId("ops-depth")).toContainText("done");
 });
 
 test("packaged exe needs nothing on PATH (D7 frozen backend)", async () => {

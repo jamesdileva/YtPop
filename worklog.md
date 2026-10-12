@@ -950,3 +950,36 @@
 
 ### Commit
 - `D13: feat(clipping): policy-gated ranker retraining cadence`
+
+## D14 - 2026-10-09 - dashboard design system (done)
+
+### Planned
+- The app shipped with no stylesheet at all: white background, plain
+  browser text. 14 sprints of functionality, zero visual design. Add a real
+  design system without disturbing the data layer.
+
+### Did
+- [x] `renderer/src/styles.css` - dark studio theme via CSS custom properties
+  (matches the generated overlay graphics' palette, so UI and video share one
+  visual language): app shell (sidebar + main), cards, cards grid, lists,
+  topic cards, badges per status, buttons/inputs, review layout, score bars,
+  ops stat row
+- [x] `main.tsx` imports the stylesheet
+- [x] `App.tsx` restructured to the shell: sidebar brand + nav with
+  "coming soon" markers, header with health pill (dot status color),
+  4-up card grid for discovery sections, topic cards with score leading
+- [x] `Review.tsx` / `Episodes.tsx` / `Ops.tsx` moved from inline styles to
+  classes; ops depth now a stat row; status badges on queue/jobs/segments
+- [x] e2e specs updated for the new shell (brand + h1 assertions, `done`
+  stat label) - data-testid contracts unchanged
+
+### Verified
+- `vitest` -> 40 passed; `tsc` clean; `playwright` -> 4 passed
+- Screenshot of the packaged exe: dark theme, YtPop brand, health pill green
+  "API: ok (0.1.0)", topic card 91.5 Golden Game Update, clip review filters
+- Noted during the run: the earlier double window was a stale Playwright
+  instance (old white build) alongside the new one, not two windows from one
+  launch
+
+### Commit
+- `D14: feat(ui): dark studio design system for the shell`

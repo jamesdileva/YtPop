@@ -27,7 +27,7 @@ function RenderPanel({
   const [error, setError] = useState("");
 
   return (
-    <div data-testid={`render-panel-${ep.id}`}>
+    <div data-testid={`render-panel-${ep.id}`} className="field">
       <select
         data-testid={`render-preset-${ep.id}`}
         value={preset}
@@ -41,6 +41,7 @@ function RenderPanel({
       </select>
       <button
         data-testid={`render-btn-${ep.id}`}
+        className="primary"
         disabled={busy}
         onClick={() => {
           setBusy(true);
@@ -63,9 +64,9 @@ function RenderPanel({
             src={renderFileUrl(result.render_id)}
             controls
             preload="none"
-            width={480}
+            className="source-player"
           />
-          <p data-testid={`render-qa-${ep.id}`}>
+          <p data-testid={`render-qa-${ep.id}`} className="muted">
             QA {result.qa.ok ? "pass" : "FAIL"} — {result.qa.duration}s,{" "}
             {result.qa.resolution}, {result.qa.fps}fps
           </p>
@@ -98,29 +99,33 @@ function Timeline({
 
   return (
     <div data-testid={`timeline-${ep.id}`}>
-      <p data-testid={`duration-${ep.id}`}>
+      <p data-testid={`duration-${ep.id}`} className="muted">
         {fmt(ep.actual_duration)} / {fmt(ep.target_duration)} (
         {ep.over_under >= 0 ? "+" : ""}
         {fmt(Math.abs(ep.over_under))} {ep.over_under >= 0 ? "over" : "under"})
       </p>
-      <ol>
+      <ol className="list">
         {ep.segments.map((s, i) => (
           <li key={s.id} data-testid={`seg-${s.id}`}>
-            [{s.kind}] {s.moment_id ? `clip m${s.moment_id}` : s.context_text} —{" "}
-            {s.duration.toFixed(1)}s
-            <button data-testid={`up-${s.id}`} onClick={() => void move(ep, i, -1)}>
-              ↑
-            </button>
-            <button data-testid={`down-${s.id}`} onClick={() => void move(ep, i, 1)}>
-              ↓
-            </button>
-            <button data-testid={`del-${s.id}`} onClick={() => void remove(ep.id, s.id)}>
-              ✕
-            </button>
+            <span>
+              [{s.kind}] {s.moment_id ? `clip m${s.moment_id}` : s.context_text} —{" "}
+              {s.duration.toFixed(1)}s
+            </span>
+            <span className="actions" style={{ marginTop: 0 }}>
+              <button data-testid={`up-${s.id}`} onClick={() => void move(ep, i, -1)}>
+                ↑
+              </button>
+              <button data-testid={`down-${s.id}`} onClick={() => void move(ep, i, 1)}>
+                ↓
+              </button>
+              <button data-testid={`del-${s.id}`} onClick={() => void remove(ep.id, s.id)}>
+                ✕
+              </button>
+            </span>
           </li>
         ))}
       </ol>
-      <div>
+      <div className="field">
         <input
           data-testid={`add-moment-${ep.id}`}
           placeholder="approved moment id"
@@ -137,7 +142,7 @@ function Timeline({
           Add clip
         </button>
         {!approved.loading && (
-          <span data-testid={`approved-count-${ep.id}`}>
+          <span data-testid={`approved-count-${ep.id}`} className="muted">
             {approved.data.length} approved available
           </span>
         )}
@@ -162,9 +167,9 @@ function Timeline({
         </button>
         {genError && <p data-testid={`generate-error-${ep.id}`}>{genError}</p>}
         {plan && (
-          <div data-testid={`plan-${ep.id}`}>
+          <div data-testid={`plan-${ep.id}`} className="excerpt">
             <p data-testid={`plan-title-${ep.id}`}>{plan.title}</p>
-            <ul>
+            <ul className="list">
               {plan.story_clusters.map((c) => (
                 <li key={c.name} data-testid={`plan-cluster-${ep.id}`}>
                   {c.name}: {c.moment_ids.join(", ")}
@@ -188,9 +193,9 @@ export default function Episodes() {
   const [openId, setOpenId] = useState<number | null>(null);
 
   return (
-    <section>
+    <section className="card">
       <h2>Episodes</h2>
-      <div>
+      <div className="field">
         <input
           data-testid="episode-title"
           placeholder="New episode title"
@@ -199,6 +204,7 @@ export default function Episodes() {
         />
         <button
           data-testid="episode-create"
+          className="primary"
           onClick={() => {
             void create(title).then((ep) => {
               setTitle("");
@@ -213,7 +219,7 @@ export default function Episodes() {
       {loading ? (
         <p>Loading episodes…</p>
       ) : (
-        <ul data-testid="episode-list">
+        <ul data-testid="episode-list" className="list">
           {data.map((ep) => (
             <li key={ep.id}>
               <button data-testid={`episode-${ep.id}`} onClick={() => setOpenId(openId === ep.id ? null : ep.id)}>
