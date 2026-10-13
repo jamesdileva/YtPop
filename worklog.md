@@ -737,7 +737,7 @@
 - [x] Root `npm run pack:backend` / `npm run dist`; apps/api workspace +
   gitignore for freeze artifacts
 - [x] Tests: `tests/clipping/test_embedding_service.py` (8) + frozen-path
-  regression `e2e/packaged.spec.ts` "needs nothing on PATH"; runbook §4
+  regression `e2e/packaged.spec.ts` "needs nothing on PATH"; runbook ï¿½4
 
 ### Verified
 - `pytest -q` -> 159 passed; `vitest` -> 40 passed; `npx playwright test` ->
@@ -1012,3 +1012,50 @@
 
 ### Commit
 - `fix(pipeline): accurate no-trend error for small libraries`
+
+## Fix-2 - 2026-10-12 - discover button + packaged-build staleness check (done)
+
+### Found
+- Two open items from the 10-11 session: (1) no discovery trigger in the
+  UI (user: "i dont think theres a discovery button?"); (2) "win-unpack is
+  stale / doesnt have the changes we just made?"
+- The prior session ended mid-`verify_asar.js` debugging (path bug +
+  wrong `@electron/asar` API); its work was committed, the rest was in the
+  working tree.
+
+### Did
+- [x] `App.tsx` Discovery section: region input (`discover-region`) +
+  Discover button (`discover-btn`, busy state) posting to
+  `POST /api/v1/sources/discover`, then refreshing trends + sources;
+  quota result line + server-provided error surface
+- [x] `useTrends.discoverSources` + `refresh()` on `useTrends`/`useSources`
+  (nonce pattern); `YouTubeService` key check moved from constructor to
+  request time with the exact `.env` var named, so the UI error is
+  actionable ("youtube api key is not configured (set
+  YTPOP_YOUTUBE_API_KEY in .env)")
+- [x] Tests: discover happy-path + missing-key error (`App.test.tsx`),
+  no-network-before-key-check (`test_youtube_service.py`), updated
+  no-trend message (`test_jobs.py`), `Ops.test.tsx` stat-row assertions
+- [x] `verify_asar.js` (repo root): fixed `path.join` double-prefix +
+  `readFileSync` (not in this `@electron/asar` version) -> `extractFile`
+  with backslash-relative names; backend strings checked behaviorally
+  instead (PyInstaller compresses code, binary-grep can never match)
+- [x] `.gitignore`: added `data/overlays|scenes|captions|storyboards`
+  (D10/D11 dirs were untracked); removed orphaned episode-1 artifacts
+
+### Verified
+- `pytest -q` -> 191 passed, 1 skipped; `vitest` -> 44 passed (22 real +
+  22 stale-`.js` duplicates re-emitted by `tsc` - pre-existing, gitignored);
+  `tsc --noEmit` clean
+- `node verify_asar.js` -> ALL OK (discover-btn/region, `--bg` theme,
+  styles.css, main.js, backend exe present)
+- Frozen exe probed with production-like env (`YTPOP_DB_PATH` absolute,
+  dirs pre-made as `main.ts` does): health 200, discover -> 502 with the
+  new key message, pipeline -> 400 with the multi-video message. The
+  win-unpack from 10-11 8:19 PM already contains all of this tree's
+  changes - it was NOT stale; the first probe's 500s were my missing
+  `YTPOP_DB_PATH`, not a packaging bug. No rebuild needed.
+- `git status` clean; DB tables all zeroed; orphaned data files removed
+
+### Commit
+- `feat(discovery): manual discover button + key guard + asar verify`
