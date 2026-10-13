@@ -1100,3 +1100,51 @@
 
 ### Commit
 - `fix(packaging): shell forwards YTPOP_* from .env to backend`
+
+## Fix-4 - 2026-10-12 - copied .env 500'd Discover; stale packaged DBs (done)
+
+### Found
+- After the userData `.env` was created as a full repo copy, Discover 500'd
+  (`discover failed: 500`, non-JSON body). Reproduced the exact click in the
+  real UI. Backend code exonerated: dev + frozen binaries both 200 on the
+  same DB copy + key, at max_results 5 and 25.
+- Root cause: repo `.env` carries dev-relative
+  `YTPOP_DB_PATH=data/database/mega_clipper.db`; the backend's userData
+  `.env` loader used `override=True` and stomped the shell's absolute DB
+  path -> "unable to open database file" on every DB endpoint (health 200).
+- Second find while verifying: the user's packaged DB predates
+  `server_default=func.now()` - `discovery_runs.created_at` has no DDL
+  default (NULL on all rows), so `quota_used_today` read 0 forever and the
+  quota guard could never trip. `ensure_schema` only added whole tables,
+  never evolved them (packaged installs never run Alembic).
+
+### Did
+- [x] Immediate: trimmed userData `.env` to the key line only (user's live
+  build worked again; their Discover then imported 25 sources, 1 unit)
+- [x] `config.py`: file-env precedence real env > userData `.env` > repo
+  `.env` (both `override=False`, data loaded first) - a file can never
+  clobber shell-set paths again; `tests/test_config_env.py` (3 tests)
+- [x] `models.py`: `default=_utcnow` beside all 13
+  `server_default=func.now()` timestamps - ORM inserts stamped in Python
+  regardless of stale DDL
+- [x] `database.py`: `ensure_schema(url=None)` now also backfills missing
+  columns (nullable-or-defaulted only, warns otherwise);
+  `tests/test_ensure_schema.py` (stale-table upgrade, noop rerun, fresh)
+- [x] Rebuilt freeze (had to move two other projects' `__editable__` .pth
+  hooks aside first - they made PyInstaller's graph crawl worldsim and the
+  build died post-graph; restored right after) + repackaged win-unpacked
+
+### Verified
+- `pytest -q` -> 197 passed, 1 skipped; `tsc` electron clean (earlier)
+- Failure-condition probe (new frozen exe, app-style env, FULL 10-key
+  `.env` copy): Discover 200 (was 500)
+- Stale-DB probe (copy of the old-schema user DB): boot backfilled
+  `discovered_at`; Discover 200 with `quota_used_today: 1` (was 0);
+  timestamped runs 1/2 (pre-existing NULL row stays historical)
+- `node verify_asar.js` -> ALL OK; packaged e2e 2/2 (earlier build, shell
+  unchanged since)
+- Note: pre-existing NULL `created_at` rows are left as-is (history, not
+  rewritten); quota counts from the fix forward
+
+### Commit
+- `fix(packaging): env precedence + stale-db upgrade (timestamps, quota)`
