@@ -3,6 +3,11 @@ import { spawn, ChildProcess } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
+import {
+  applyFileEnv,
+  candidateEnvFiles,
+  loadEnvFiles,
+} from "./envfile";
 
 // userData/login paths derive from the app name; the scoped npm name
 // ("@ytpop/desktop") would scatter data under Roaming/@ytpop/desktop.
@@ -136,6 +141,16 @@ async function startBackend(): Promise<string> {
     env.YTPOP_DATA_DIR = dataRoot;
     env.YTPOP_DB_PATH = path.join(dataRoot, "database", "mega_clipper.db");
   }
+  // .env files are NOT in process.env, so forward YTPOP_* secrets (API key,
+  // demo/scheduler flags) to the backend explicitly. Real env vars win over
+  // files; the user-data .env wins over the checkout .env. Key names only
+  // are logged - never values.
+  const { values: fileEnv, loaded: envFiles } = loadEnvFiles(
+    candidateEnvFiles(isPackaged, env.YTPOP_ROOT as string, dataRoot),
+  );
+  const applied = applyFileEnv(env, fileEnv);
+  log(`env files loaded: ${envFiles.join(", ") || "(none)"} ` +
+      `applied: ${applied.join(", ") || "(none)"}`);
   const port = await freePort();
   const apiUrl = `http://127.0.0.1:${port}`;
   const cwd = backendWorkingDir();

@@ -45,6 +45,7 @@
       "dist/**/*",
       "electron/main.js",
       "electron/preload.js",
+      "electron/envfile.js",
       "package.json"
     ],
     "extraResources": [

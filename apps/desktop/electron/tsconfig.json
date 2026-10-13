@@ -8,5 +8,5 @@
     "outDir": ".",
     "rootDir": "."
   },
-  "files": ["main.ts", "preload.ts"]
+  "files": ["main.ts", "preload.ts", "envfile.ts"]
 }

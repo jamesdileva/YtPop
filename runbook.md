@@ -54,7 +54,12 @@ Names carry the `YTPOP_` prefix (pydantic-settings `env_prefix`), so
 `YTPOP_YOUTUBE_API_KEY`, not `YOUTUBE_API_KEY`. The backend reads the repo
 `.env` on startup, and a **packaged** install also reads
 `%APPDATA%\YtPop\data\.env` (that one wins), so you can configure an
-installed app without touching the checkout.
+installed app without touching the checkout. The Electron shell forwards
+`YTPOP_*` values from those files into the spawned backend itself (real
+environment variables still win), and logs which file applied, key names
+only, e.g. `env files loaded: ...\YtPop\data\.env applied:
+YTPOP_YOUTUBE_API_KEY` in `%APPDATA%\YtPop\logs\electron.log`. If Discover
+says "not configured", that log line tells you which `.env` the app saw.
 
 ## 3c. Live E2E (real YouTube)
 
