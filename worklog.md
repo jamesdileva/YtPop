@@ -1059,3 +1059,44 @@
 
 ### Commit
 - `feat(discovery): manual discover button + key guard + asar verify`
+
+## Fix-3 - 2026-10-12 - packaged Discover said "key not configured" despite repo .env (done)
+
+### Found
+- User pressed Discover in win-unpacked: "youtube api key is not configured",
+  but the key exists in the repo `.env`.
+- Root cause: the Electron shell spread `process.env` (which never contains
+  `.env` file values) and never forwarded the key; the frozen backend's own
+  repo-`.env` lookup resolves via `parents[4]`, meaningless inside the
+  PyInstaller layout, so it loaded nothing. The userData
+  `%APPDATA%\YtPop\data\.env` (the documented packaged location, which the
+  backend does read) simply didn't exist.
+
+### Did
+- [x] `electron/envfile.ts` (new, dependency-free - main ships with no
+  node_modules): `.env` parser (quotes/`export`/comments) returning only
+  `YTPOP_*` keys, ordered loader (later wins, missing skipped), applier
+  that never overrides real env vars
+- [x] `main.ts` forwards file-provided `YTPOP_*` into the spawned backend
+  env (dev: checkout `.env`; packaged: + userData `.env`, which wins) and
+  logs files applied, key names only, never values
+- [x] `electron-builder` files += `electron/envfile.js` (caught before
+  shipping: the first rebuild packed `main.js` with a `require` to a file
+  that wasn't in the asar)
+- [x] runbook: forwarding precedence + the log line to check when Discover
+  reports "not configured"
+
+### Verified
+- Parser unit probe: 14/14 (quoting, export, comments, PATH/unprefixed
+  ignored, precedence, real-env-wins, candidate order)
+- `tsc -p electron/tsconfig.json` clean; `npx playwright test
+  e2e/packaged.spec.ts` -> 2 passed (real exe boots, golden data, no-PATH)
+- Live forwarding proof (fake key in userData `.env`, real exe): shell log
+  `env files loaded: ...\YtPop\data\.env applied: YTPOP_YOUTUBE_API_KEY`;
+  Discover -> 502 "API key not valid" FROM YouTube (key demonstrably
+  traveled shell -> backend -> Google). Fake file removed, processes down.
+- Immediate user fix (works on the current build, no reinstall): create
+  `%APPDATA%\YtPop\data\.env` with `YTPOP_YOUTUBE_API_KEY=<key>`, restart.
+
+### Commit
+- `fix(packaging): shell forwards YTPOP_* from .env to backend`
