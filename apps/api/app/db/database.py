@@ -7,7 +7,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
+import structlog
+
 from app.config import settings
+
+log = structlog.get_logger()
 
 
 def repo_root() -> Path:
@@ -66,24 +70,60 @@ def get_db() -> Iterator[Session]:
         db.close()
 
 
-def ensure_schema() -> bool:
-    """Create missing tables from model metadata. Returns True if it had to.
+def ensure_schema(url: str | None = None) -> bool:
+    """Create missing tables AND missing columns from model metadata.
 
     Dev/test flows use Alembic; the packaged (frozen) backend uses this so a
     first run on a fresh data dir works without shipping migrations.
+
+    Column backfill matters because ensure_schema historically only added
+    whole tables: a DB created by an older build keeps stale tables (e.g. a
+    discovery_runs without the created_at default, or a sources table
+    without created_at at all), which silently breaks quota accounting.
+    Returns True if it had to create or alter anything.
     """
     from app.db import models  # noqa: F401  (register metadata)
     from app.db.base import Base
-    from sqlalchemy import inspect
+    from sqlalchemy import inspect, text
 
-    engine = get_engine()
+    engine = get_engine(url)
+    changed = False
     existing = set(inspect(engine).get_table_names())
-    missing = set(Base.metadata.tables) - existing
-    if not missing:
-        return False
-    resolve_db_path().parent.mkdir(parents=True, exist_ok=True)
-    Base.metadata.create_all(engine)
-    return True
+    missing_tables = set(Base.metadata.tables) - existing
+    if missing_tables:
+        resolve_db_path().parent.mkdir(parents=True, exist_ok=True)
+        Base.metadata.create_all(engine)
+        changed = True
+        existing |= missing_tables
+    with engine.begin() as conn:
+        for table in Base.metadata.tables.values():
+            if table.name not in existing:
+                continue
+            present = {
+                c["name"] for c in inspect(conn).get_columns(table.name)
+            }
+            for column in table.columns:
+                if column.name in present:
+                    continue
+                if not column.nullable and column.server_default is None:
+                    log.warning(
+                        "ensure_schema_skip",
+                        table=table.name, column=column.name,
+                        reason="not-null without default",
+                    )
+                    continue
+                ddl = (
+                    f"ALTER TABLE {table.name} ADD COLUMN {column.name} "
+                    f"{column.type.compile(dialect=engine.dialect)}"
+                )
+                if column.server_default is not None:
+                    default = column.server_default.arg.compile(
+                        engine, compile_kwargs={"literal_binds": True}
+                    )
+                    ddl += f" DEFAULT {default}"
+                conn.execute(text(ddl))
+                changed = True
+    return changed
 
 
 def init_db(url: str | None = None) -> Engine:

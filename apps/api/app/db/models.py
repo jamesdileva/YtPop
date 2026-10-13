@@ -1,10 +1,12 @@
 """S2 core tables — mirrors architecture.md §6.
 
 All status fields are plain String (state machines enforced in domain layer,
-tested in S6/S12). Timestamps default to UTC now via func.now().
+tested in S6/S12). Timestamps default to UTC now twice: `default=_utcnow`
+(python side, so ORM inserts are stamped even on packaged DBs whose DDL
+predates the server default) and `server_default=func.now()` (fresh DDL).
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     Float,
@@ -20,6 +22,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from app.db.base import Base
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class Source(Base):
@@ -42,7 +48,7 @@ class Source(Base):
     thumbnail_url: Mapped[str] = mapped_column(Text, default="")
     trend_score: Mapped[float] = mapped_column(Float, default=0.0)
     discovered_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=_utcnow, server_default=func.now()
     )
     last_checked_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -61,10 +67,10 @@ class TrendEvent(Base):
     region: Mapped[str] = mapped_column(String(8), default="US")
     category: Mapped[str] = mapped_column(String(64), default="")
     first_detected_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=_utcnow, server_default=func.now()
     )
     last_detected_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=_utcnow, server_default=func.now()
     )
     status: Mapped[str] = mapped_column(String(32), default="ACTIVE")
 
@@ -91,7 +97,7 @@ class Transcript(Base):
     segments_json: Mapped[str] = mapped_column(Text, default="[]")
     audio_sha256: Mapped[str] = mapped_column(String(64), default="")
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=_utcnow, server_default=func.now()
     )
 
 
@@ -154,10 +160,10 @@ class Episode(Base):
     actual_duration: Mapped[float] = mapped_column(Float, default=0.0)
     status: Mapped[str] = mapped_column(String(32), default="DRAFT")
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=_utcnow, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=_utcnow, server_default=func.now()
     )
 
 
@@ -192,7 +198,7 @@ class Render(Base):
     path: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(32), default="QUEUED")
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=_utcnow, server_default=func.now()
     )
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -211,7 +217,7 @@ class Job(Base):
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     error: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=_utcnow, server_default=func.now()
     )
     started_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -243,7 +249,7 @@ class RankerRun(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     trained_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=_utcnow, server_default=func.now()
     )
     rows: Mapped[int] = mapped_column(Integer, default=0)
     positive: Mapped[int] = mapped_column(Integer, default=0)
@@ -269,7 +275,7 @@ class SourceSnapshot(Base):
     like_count: Mapped[int] = mapped_column(Integer, default=0)
     comment_count: Mapped[int] = mapped_column(Integer, default=0)
     taken_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=_utcnow, server_default=func.now()
     )
 
 
@@ -284,7 +290,7 @@ class DiscoveryRun(Base):
     units_consumed: Mapped[int] = mapped_column(Integer, default=0)
     source_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=_utcnow, server_default=func.now()
     )
 
 
@@ -303,7 +309,7 @@ class MediaAsset(Base):
     duration: Mapped[float] = mapped_column(Float, default=0.0)
     codec: Mapped[str] = mapped_column(String(32), default="")
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=_utcnow, server_default=func.now()
     )
 
 
@@ -323,5 +329,5 @@ class MomentFeedback(Base):
     adjusted_start: Mapped[float] = mapped_column(Float, default=0.0)
     adjusted_end: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), default=_utcnow, server_default=func.now()
     )
