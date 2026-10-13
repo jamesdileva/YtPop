@@ -1,5 +1,12 @@
+import { useState } from "react";
 import { useHealth } from "./hooks/useHealth";
-import { useTopics, useTrends, type TrendBrief } from "./hooks/useTrends";
+import {
+  discoverSources,
+  useTopics,
+  useTrends,
+  type DiscoverResult,
+  type TrendBrief,
+} from "./hooks/useTrends";
 import Review from "./components/Review";
 import Episodes from "./components/Episodes";
 import Ops from "./components/Ops";
@@ -83,6 +90,12 @@ export default function App() {
   const trends = useTrends();
   const sources = useSources();
   const topics = useTopics();
+  const [region, setRegion] = useState("US");
+  const [busyDiscover, setBusyDiscover] = useState(false);
+  const [discoverResult, setDiscoverResult] = useState<DiscoverResult | null>(
+    null,
+  );
+  const [discoverError, setDiscoverError] = useState("");
   const healthState = health.loading
     ? "checking"
     : health.status === "ok"
@@ -122,6 +135,50 @@ export default function App() {
           </span>
         </header>
         {health.error && <p data-testid="api-error">{health.error}</p>}
+        <section className="card">
+          <h2>Discovery</h2>
+          <div className="field">
+            <input
+              data-testid="discover-region"
+              placeholder="region (e.g. US)"
+              value={region}
+              onChange={(e) => setRegion(e.target.value.toUpperCase())}
+            />
+            <button
+              data-testid="discover-btn"
+              className="primary"
+              disabled={busyDiscover}
+              onClick={() => {
+                setBusyDiscover(true);
+                setDiscoverError("");
+                discoverSources(region || "US", 25)
+                  .then((out) => {
+                    setDiscoverResult(out);
+                    trends.refresh();
+                    sources.refresh();
+                  })
+                  .catch((e: unknown) =>
+                    setDiscoverError(
+                      e instanceof Error ? e.message : "discovery failed",
+                    ),
+                  )
+                  .finally(() => setBusyDiscover(false));
+              }}
+            >
+              {busyDiscover ? "Discovering…" : "Discover"}
+            </button>
+          </div>
+          {discoverError && (
+            <p data-testid="discover-error">{discoverError}</p>
+          )}
+          {discoverResult && (
+            <p data-testid="discover-result" className="muted">
+              {discoverResult.imported} new of {discoverResult.seen} seen ·{" "}
+              {discoverResult.units_consumed} quota units (used today:{" "}
+              {discoverResult.quota_used_today})
+            </p>
+          )}
+        </section>
         <div className="card-grid">
           <section className="card">
             <h2>Trending now</h2>

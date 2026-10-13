@@ -79,12 +79,14 @@ def _parse_iso8601_duration(value: str) -> float:
 
 class YouTubeService:
     def __init__(self, api_key: str, client: httpx.Client | None = None) -> None:
-        if not api_key:
-            raise YouTubeAPIError("youtube api key is not configured")
         self.api_key = api_key
         self.client = client or httpx.Client(timeout=15.0)
 
     def _get(self, path: str, params: dict) -> dict:
+        if not self.api_key:
+            raise YouTubeAPIError(
+                "youtube api key is not configured "
+                "(set YTPOP_YOUTUBE_API_KEY in .env)")
         params = {**params, "key": self.api_key}
         try:
             resp = self.client.get(f"{BASE_URL}/{path}", params=params)

@@ -56,6 +56,19 @@ describe("App health badge + trends sections", () => {
       "fetch",
       vi.fn((url: string, opts?: { method?: string }) => {
         const u = String(url);
+        if (u.includes("/api/v1/sources/discover")) {
+          if (opts?.method === "POST") {
+            return Promise.resolve({
+              ok: true,
+              json: () =>
+                Promise.resolve({
+                  imported: 3, seen: 10, units_consumed: 1,
+                  quota_used_today: 4,
+                }),
+            });
+          }
+          return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+        }
         if (u.includes("/api/v1/trends")) {
           return Promise.resolve({ json: () => Promise.resolve(TRENDS_FIXTURE) });
         }
@@ -154,6 +167,79 @@ describe("App health badge + trends sections", () => {
     fireEvent.click(screen.getByTestId("request-review-7"));
     await waitFor(() =>
       expect(screen.getByTestId("rights-7").textContent).toContain("REVIEW_REQUIRED"),
+    );
+  });
+
+  it("discover button posts region and shows quota result", async () => {
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId("discover-btn")).toBeInTheDocument(),
+    );
+    fireEvent.change(screen.getByTestId("discover-region"), {
+      target: { value: "gb" },
+    });
+    fireEvent.click(screen.getByTestId("discover-btn"));
+    await waitFor(() =>
+      expect(screen.getByTestId("discover-result").textContent).toContain(
+        "3 new of 10 seen",
+      ),
+    );
+    expect(screen.getByTestId("discover-result").textContent).toContain(
+      "used today: 4",
+    );
+  });
+
+  it("discover surfaces a missing-key error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, opts?: { method?: string }) => {
+        const u = String(url);
+        if (u.includes("/sources/discover") && opts?.method === "POST") {
+          return Promise.resolve({
+            ok: false,
+            status: 502,
+            json: () =>
+              Promise.resolve({ detail: "youtube api key is not configured" }),
+          });
+        }
+        if (u.includes("/trend-events")) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+        }
+        if (u.includes("/api/v1/trends")) {
+          return Promise.resolve({
+            json: () =>
+              Promise.resolve({
+                trending_now: [],
+                recently_rising: [],
+                fastest_growing: [],
+                top_categories: [],
+              }),
+          });
+        }
+        if (u.includes("/api/v1/jobs")) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ jobs: [], queue_depth: {} }),
+          });
+        }
+        if (u.includes("/api/v1/sources") || u.includes("/moments") || u.includes("/episodes")) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ status: "ok", version: "0.1.0" }),
+        });
+      }),
+    );
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId("discover-btn")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByTestId("discover-btn"));
+    await waitFor(() =>
+      expect(screen.getByTestId("discover-error").textContent).toContain(
+        "not configured",
+      ),
     );
   });
 });

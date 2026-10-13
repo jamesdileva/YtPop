@@ -117,9 +117,11 @@ export async function requestReview(
 export function useSources(base?: string): {
   data: SourceBrief[];
   loading: boolean;
+  refresh: () => void;
 } {
   const [data, setData] = useState<SourceBrief[]>([]);
   const [loading, setLoading] = useState(true);
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -137,9 +139,9 @@ export function useSources(base?: string): {
     return () => {
       alive = false;
     };
-  }, [base]);
+  }, [base, nonce]);
 
-  return { data, loading };
+  return { data, loading, refresh: () => setNonce((n) => n + 1) };
 }
 
 export function useTranscript(

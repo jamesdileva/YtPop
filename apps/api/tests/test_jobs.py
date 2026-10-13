@@ -199,4 +199,5 @@ def test_pipeline_empty_db_400(setup):
     client, _ = setup
     r = client.post("/api/v1/pipeline/daily-episode", json={})
     assert r.status_code == 400
-    assert "no trends" in r.json()["detail"]
+    detail = r.json()["detail"]
+    assert "no trend:" in detail and "multi-video by design" in detail

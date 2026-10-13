@@ -65,8 +65,17 @@ def test_api_error_raises():
 
 
 def test_missing_key_raises_before_network():
+    calls: list = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json={"items": []})
+
+    svc = YouTubeService(api_key="",
+                         client=httpx.Client(transport=httpx.MockTransport(handler)))
     with pytest.raises(YouTubeAPIError, match="not configured"):
-        YouTubeService(api_key="")
+        svc.get_most_popular()
+    assert calls == [], "no HTTP request may precede the key check"
 
 
 def test_get_video_404_raises():

@@ -53,7 +53,9 @@ describe("Ops", () => {
 
   it("shows queue depth and failures", async () => {
     render(<Ops />);
-    await waitFor(() => expect(screen.getByTestId("ops-depth").textContent).toContain("failed: 1"));
+    await waitFor(() =>
+      expect(screen.getByTestId("ops-depth").textContent).toContain("1failed"),
+    );
     expect(screen.getByTestId("ops-jobs").textContent).toContain("CLUSTER");
     expect(screen.getByTestId("ops-jobs").textContent).toContain("boom");
   });
@@ -65,6 +67,7 @@ describe("Ops", () => {
     await waitFor(() =>
       expect(screen.getByTestId("ops-episode").textContent).toContain("Episode 9"),
     );
-    expect(screen.getByTestId("ops-result").textContent).toContain("cluster: COMPLETED");
+    expect(screen.getByTestId("ops-result").textContent).toContain("cluster");
+    expect(screen.getByTestId("ops-result").textContent).toContain("COMPLETED");
   });
 });

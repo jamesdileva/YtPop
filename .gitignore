@@ -35,6 +35,10 @@ data/episodes/*
 data/renders/*
 data/thumbnails/*
 data/logs/*
+data/overlays/*
+data/scenes/*
+data/captions/*
+data/storyboards/*
 !data/**/.gitkeep
 
 # Build / OS

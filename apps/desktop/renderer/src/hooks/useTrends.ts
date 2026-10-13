@@ -36,14 +36,48 @@ export function getTrendsUrl(base: string = DEFAULT_URL): string {
   return `${base.replace(/\/$/, "")}/api/v1/trends`;
 }
 
+export type DiscoverResult = {
+  imported: number;
+  seen: number;
+  units_consumed: number;
+  quota_used_today: number;
+};
+
+/** Manual discovery trigger (S3 route). Surfaces quota + key errors. */
+export async function discoverSources(
+  region: string,
+  maxResults: number,
+  base?: string,
+): Promise<DiscoverResult> {
+  const url = `${(base ?? DEFAULT_URL).replace(/\/$/, "")}/api/v1/sources/discover`;
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ region, max_results: maxResults }),
+  });
+  if (!r.ok) {
+    let detail = `discover failed: ${r.status}`;
+    try {
+      const body = (await r.json()) as { detail?: string };
+      if (body.detail) detail = body.detail;
+    } catch {
+      /* keep status fallback */
+    }
+    throw new Error(detail);
+  }
+  return r.json() as Promise<DiscoverResult>;
+}
+
 export function useTrends(base?: string): {
   data: TrendsData | null;
   loading: boolean;
   error?: string;
+  refresh: () => void;
 } {
   const [data, setData] = useState<TrendsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | undefined>(undefined);
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -64,9 +98,9 @@ export function useTrends(base?: string): {
     return () => {
       alive = false;
     };
-  }, [base]);
+  }, [base, nonce]);
 
-  return { data, loading, error };
+  return { data, loading, error, refresh: () => setNonce((n) => n + 1) };
 }
 
 export type TopicCard = {
